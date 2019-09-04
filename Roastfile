@@ -1,0 +1,135 @@
+#!/usr/bin/env python3
+# vim: tabstop=4 shiftwidth=4 expandtab
+
+import os, json, luminaire.toolchain, luminaire.util
+
+Frontend.target("MODE",{"debug","release"},"release")
+
+def condition(source):
+    a = os.path.splitext(source)[1] == ".c"
+    b = os.path.splitext(source)[1] == ".cc"
+    c = os.path.isfile(source)
+    return (a or b) and c
+def transform(header):
+    source = os.path.splitext(header)[0] + ".c"
+    source = source.replace("include","src")
+    if condition(source):
+        return source
+    source = os.path.splitext(header)[0] + ".cc"
+    source = source.replace("include","src")
+    return source if condition(source) else None
+
+def builder_common(context,builder):
+    luminaire.toolchain.DEBUGGING(builder)
+    luminaire.toolchain.PRUNE(builder)
+
+    builder.append_cflag("-D_GNU_SOURCE")
+    builder.append_cflag("-DLC_BUILD_NOCXX=1")
+    builder.append_cflag("-Weverything")
+    builder.append_cflag("-Werror")
+    builder.append_cflag("-Wno-signed-enum-bitfield")
+    # this doesn't seem like it should be necessary ...
+    builder.append_cflag("-Wno-format-zero-length")
+    builder.append_cflag("-Wno-deprecated-register")
+    builder.append_cflag("-Wno-c++98-compat")
+    builder.append_cflag("-Wno-c++98-compat-pedantic")
+    builder.append_cflag("-Wno-c++98-c++11-compat-pedantic")
+    # builder.append_cflag("-Wno-reserved-id-macro")
+    builder.append_cflag("-Wno-nested-anon-types")
+    builder.append_cflag("-Wno-gnu-anonymous-struct")
+    builder.append_cflag("-Wno-padded")
+    builder.append_cflag("-Wno-missing-prototypes")
+    builder.append_cflag("-Wno-exit-time-destructors")
+    builder.append_cflag("-Wno-unknown-warning-option")
+    builder.append_cflag("-Wno-documentation")
+    builder.append_cflag("-Wno-documentation-unknown-command")
+
+    builder.append_cflag("-Wno-missing-noreturn")
+
+    builder.append_lflag(context.format("-T{ARCH}.ld"))
+    builder.append_include("include")
+    builder.append_include("packages/stm32g4-libs/include")
+    builder.append_include("packages/utl/include")
+    builder.append_sys_include("packages/stm32g4-libs/include")
+    builder.append_sys_include("packages/stm32g4-libs/include/device")
+    builder.append_sys_include("packages/stm32g4-libs/include/hal")
+    builder.append_include("packages/common-cc/include")
+    if context.defined(MODE="debug"):
+        builder.append_lflag("-Wl,-Map=build/debug/output.map")
+        builder.append_cflag("-fstandalone-debug")
+    elif context.defined(MODE="release"):
+        builder.append_lflag("-Wl,-Map=build/release/output.map")
+
+    # define major and minor version from package.json
+    with open('package.json') as stream:
+        content = json.load(stream)
+        major,minor,patch = content['version'].split('.')
+        major_version_macro = '-DMAJOR_VERSION={0}'.format(major)
+        minor_version_macro = '-DMINOR_VERSION={0}'.format(minor)
+        patch_version_macro = '-DPATCH_VERSION={0}'.format(patch)
+        builder.append_cflag(major_version_macro)
+        builder.append_cflag(minor_version_macro)
+        builder.append_cflag(patch_version_macro)
+
+#FIXME: this should be refactored into lcboot somewhere.
+def provide_stub_builder(context, name):
+    luminaire.toolchain.AUTOMATIC_CEE_BUILDER(context,name)
+    builder = getattr(context, name)
+
+    builder.append_cflag("-ffunction-sections")
+    builder.append_cflag("-fdata-sections")
+    builder.append_lflag("-Wl,--gc-sections")
+    builder.append_lflag("-Wl,--discard-locals")
+    builder.append_lflag("-Wl,--strip-debug")
+    builder.append_lflag("-Wl,--strip-discarded")
+
+    builder.append_cflag("-std=c11")
+    builder.append_lflag("-static")
+    builder.remove_cflag("-funwind-tables")
+
+@Frontend.first
+def configure(context):
+    context.keyword["ARCH"] = "stm32g431xb"
+    luminaire.toolchain.AUTOMATIC_CEE_BUILDER(context,"cee_builder", global_records = True)
+    builder_common(context,context.cee_builder)
+    context.cee_builder.append_cflag("-std=gnu11")
+    luminaire.toolchain.AUTOMATIC_CXX_BUILDER(context,"cxx_builder", global_records = True)
+    builder_common(context,context.cxx_builder)
+    context.cxx_builder.append_cflag("-std=c++1z")
+    context.cxx_builder.append_cflag("-fno-exceptions")
+    context.cxx_builder.append_cflag("-fno-rtti")
+    context.cxx_builder.append_cflag("-fno-threadsafe-statics")
+    context.cxx_builder.append_cflag("-fno-use-cxa-atexit")
+    # include source to match against rules
+    context.search(path="src", condition=condition)
+    context.search(path="packages/stm32g4-libs/src/device/startup_stm32g431.c")
+    context.search(path="packages/stm32g4-libs/src/syscalls.c")
+    context.search(path="packages/stm32g4-libs/src/eabi.c")
+    context.search(path="packages/stm32g4-libs/src/device/system_stm32g4xx.c")
+    # context.search(path="packages/stm32g4-libs/src/hal", condition=condition)
+
+    context.search(path="stm32g431xb.ld")
+
+    context.search("package.json")
+
+@Frontend.rule(["build/{MODE}/*.o", "stm32g431xb.ld"],
+    ["build/{MODE}/firmware.elf"])
+def link(context,inputs,outputs):
+    files = list(inputs[0].collection)
+    files.sort()
+    files = " ".join(files)
+    context.cxx_builder.link_executable(files,outputs[0])
+
+@Frontend.rule(["%.{c,S}"],["build/{MODE}/{0}.o","build/{MODE}/{0}.d"])
+def compile_c_source(context,inputs,outputs):
+    if "packages/stm32g4-libs/src" in str(inputs[0]):
+        context.cee_builder.append_cflag("-Wno-everything")
+    context.cee_builder.compile_source(inputs[0],outputs[0])
+    context.cee_builder.perform_search(context,transform,outputs[1])
+    if "packages/stm32g4-libs/src" in str(inputs[0]):
+        context.cee_builder.remove_cflag("-Wno-everything")
+
+@Frontend.rule(["%.cc"],["build/{MODE}/{0}.o","build/{MODE}/{0}.d"])
+def compile_cpp_source(context,inputs,outputs):
+    context.cxx_builder.compile_source(inputs[0],outputs[0])
+    context.cxx_builder.perform_search(context,transform,outputs[1])
