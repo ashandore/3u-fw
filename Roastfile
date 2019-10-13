@@ -25,6 +25,7 @@ def builder_common(context,builder):
 
     builder.append_cflag("-D_GNU_SOURCE")
     builder.append_cflag("-DLC_BUILD_NOCXX=1")
+    builder.append_cflag("-DUSE_FULL_LL_DRIVER")
     builder.append_cflag("-Weverything")
     builder.append_cflag("-Werror")
     builder.append_cflag("-Wno-signed-enum-bitfield")

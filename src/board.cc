@@ -39,7 +39,7 @@ extern "C" void HAL_UART_MspInit(UART_HandleTypeDef *huart)
         GPIO_InitStruct.Alternate = GPIO_AF7_USART2;
 
         HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-    }  
+    }
 }
 
 extern "C" void SystemClock_Config(void)

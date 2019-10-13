@@ -1,5 +1,5 @@
 #set tdesc filename target.xml
-target remote localhost:3334
+target remote localhost:50000
 set remotetimeout 5
 mon arm semihosting enable
 set print pretty on
