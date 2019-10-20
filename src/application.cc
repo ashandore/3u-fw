@@ -11,7 +11,9 @@ extern "C" void SysTick_Handler(void) {
 
 application::application() :
     m_uart{USART2, 3000000},
-    m_power_switch{GPIOA, GPIO_PIN_1, utl::driver::pin::active_level::high, true, GPIO_NOPULL, GPIO_SPEED_FREQ_MEDIUM}
+    m_power_switch{GPIOA, GPIO_PIN_1, utl::driver::pin::active_level::high, true, GPIO_NOPULL, GPIO_SPEED_FREQ_MEDIUM},
+    m_adc{ADC1, 1000u, 3.3f},
+    m_current_sense{m_adc ? &m_adc.value() : nullptr, ADC_CHANNEL_1}
 {
 
 }
@@ -73,12 +75,26 @@ void application::start(void)
     //  increment a counter
     //  on counter overflow, reset it and load a new byte from the source buffer
     // this is easier to start with, probably.
+    m_uart.printf("PD: %d, %d", LL_UCPD_GetTypeCVstateCC1(UCPD1) >> UCPD_SR_TYPEC_VSTATE_CC1_Pos, LL_UCPD_GetTypeCVstateCC2(UCPD1) >> UCPD_SR_TYPEC_VSTATE_CC2_Pos);
 
     m_power_switch.set_state(true);
+
+    if(!m_adc) m_uart.printf("ADC initialization failed.");
 }
 
 void application::loop(void)
 {
-    HAL_Delay(1000);
-    m_uart.printf("PD: %d, %d", LL_UCPD_GetTypeCVstateCC1(UCPD1) >> UCPD_SR_TYPEC_VSTATE_CC1_Pos, LL_UCPD_GetTypeCVstateCC2(UCPD1) >> UCPD_SR_TYPEC_VSTATE_CC2_Pos);
+    if(m_adc) {
+        auto calculate_current = [](float const& voltage) {
+            return 1000u*static_cast<uint32_t>(voltage/50.0f/0.01f);
+        };
+
+        auto conv = m_current_sense.conversion();
+        if(conv) {
+            auto current = calculate_current(m_current_sense.to_voltage(conv.value()));
+            m_uart.printf("%dmA", current);
+        } else {
+            m_uart.printf("conversion failed.");
+        }
+    }
 }

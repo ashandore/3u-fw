@@ -54,6 +54,8 @@ def builder_common(context,builder):
     builder.append_sys_include("packages/stm32g4-libs/include")
     builder.append_sys_include("packages/stm32g4-libs/include/device")
     builder.append_sys_include("packages/stm32g4-libs/include/hal")
+    builder.append_sys_include("/usr/arm-none-eabi/include/c++/9.1.0")
+    builder.append_sys_include("/usr/arm-none-eabi/include/c++/9.1.0/arm-none-eabi")
     builder.append_include("packages/common-cc/include")
     if context.defined(MODE="debug"):
         builder.append_lflag("-Wl,-Map=build/debug/output.map")
@@ -86,7 +88,7 @@ def provide_stub_builder(context, name):
 
     builder.append_cflag("-std=c11")
     builder.append_lflag("-static")
-    builder.remove_cflag("-funwind-tables")
+    builder.remove_cflag("-fno-unwind-tables")
 
 @Frontend.first
 def configure(context):
