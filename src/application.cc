@@ -4,6 +4,8 @@
 #include "stm32g4xx_ll_ucpd.h"
 #include "stm32g4xx_ll_pwr.h"
 
+using namespace utl::literals;
+
 extern "C" void SysTick_Handler(void) {
     HAL_IncTick();
     //this may need a call to   HAL_SYSTICK_IRQHandler();
@@ -78,21 +80,25 @@ void application::start(void)
     // this is easier to start with, probably.
     utl::log("PD: %d, %d", LL_UCPD_GetTypeCVstateCC1(UCPD1) >> UCPD_SR_TYPEC_VSTATE_CC1_Pos, LL_UCPD_GetTypeCVstateCC2(UCPD1) >> UCPD_SR_TYPEC_VSTATE_CC2_Pos);
 
-    m_power_switch.set_state(true);
 
-    if(!m_adc) utl::log("ADC initialization failed.");
+    
+
+    m_power_switch.set_state(true);
+    if(!m_adc) utl::log("ADC initialization failed: %s", m_adc.error().message().data());
 }
 
 void application::loop(void)
 {
+    HAL_Delay(1000);
     if(m_adc) {
-        auto calculate_current = [](float const& voltage) {
-            return 1000u*static_cast<uint32_t>(voltage/50.0f/0.01f);
+        auto calculate_current = [](const uint16_t conversion) {
+            return 161u*static_cast<uint32_t>(conversion)/100u;
         };
 
         auto conv = m_current_sense.conversion();
         if(conv) {
-            auto current = calculate_current(m_current_sense.to_voltage(conv.value()));
+            utl::log("%d?", conv.value());
+            auto current = calculate_current(conv.value());
             utl::log("%dmA", current);
         } else {
             utl::log("conversion failed.");
