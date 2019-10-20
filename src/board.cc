@@ -1,4 +1,6 @@
 #include "board.h"
+#include <stm32g4xx_hal_uart.h>
+#include <stm32g4xx_hal_gpio.h>
 #include <stdarg.h>
 #include <platform/board.hh>
 // #include "stm32g4xx_hal_rcc.h"

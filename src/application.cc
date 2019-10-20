@@ -10,7 +10,8 @@ extern "C" void SysTick_Handler(void) {
 }
 
 application::application() :
-    m_uart{USART2, 3000000}
+    m_uart{USART2, 3000000},
+    m_power_switch{GPIOA, GPIO_PIN_1, utl::driver::pin::active_level::high, true, GPIO_NOPULL, GPIO_SPEED_FREQ_MEDIUM}
 {
 
 }
@@ -72,6 +73,8 @@ void application::start(void)
     //  increment a counter
     //  on counter overflow, reset it and load a new byte from the source buffer
     // this is easier to start with, probably.
+
+    m_power_switch.set_state(true);
 }
 
 void application::loop(void)
