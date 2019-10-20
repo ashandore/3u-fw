@@ -44,6 +44,22 @@ extern "C" void HAL_UART_MspInit(UART_HandleTypeDef *huart)
     }
 }
 
+extern "C" void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc) {
+    GPIO_InitTypeDef          GPIO_InitStruct;
+
+    if(hadc->Instance == ADC1) {
+        /*##-1- Enable peripherals and GPIO Clocks #################################*/
+        __HAL_RCC_ADC12_CLK_ENABLE();
+        __HAL_RCC_GPIOA_CLK_ENABLE();
+
+        /*##-2- Configure peripheral GPIO ##########################################*/ 
+        GPIO_InitStruct.Pin = GPIO_PIN_0;
+        GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+        GPIO_InitStruct.Pull = GPIO_NOPULL;
+        HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+    }
+}
+
 extern "C" void SystemClock_Config(void)
 {
     RCC_OscInitTypeDef RCC_OscInitStruct;

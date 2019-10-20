@@ -10,21 +10,22 @@ extern "C" void SysTick_Handler(void) {
 }
 
 application::application() :
-    m_uart{USART2, 3000000},
+    m_uart{USART2, 3000000u},
+    m_application_output{m_uart},
+    m_logger_setup{&m_application_output},
     m_power_switch{GPIOA, GPIO_PIN_1, utl::driver::pin::active_level::high, true, GPIO_NOPULL, GPIO_SPEED_FREQ_MEDIUM},
     m_adc{ADC1, 1000u, 3.3f},
     m_current_sense{m_adc ? &m_adc.value() : nullptr, ADC_CHANNEL_1}
 {
-
+    if(!m_uart) while(1);
 }
 
 void application::start(void)
 {
-    //Mostly working, but I'm getting ~2.6Mbaud instead of 3Mbaud. Probably something weird with clock divisors?
-    m_uart.printf("application started");
-    m_uart.printf("uart is running at %d", HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_USART2));
-    // m_uart.printf("\n");
-    // m_uart.write("U",1);
+    utl::log("application started");
+    utl::log("uart is running at %d", HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_USART2));
+    // utl::log("\n");
+    // m_uart.value().write("U",1);
 
     // 1. set up ucpd clocks
     // 2. configure sink mode LL_UCPD_SetSNKRole
@@ -75,11 +76,11 @@ void application::start(void)
     //  increment a counter
     //  on counter overflow, reset it and load a new byte from the source buffer
     // this is easier to start with, probably.
-    m_uart.printf("PD: %d, %d", LL_UCPD_GetTypeCVstateCC1(UCPD1) >> UCPD_SR_TYPEC_VSTATE_CC1_Pos, LL_UCPD_GetTypeCVstateCC2(UCPD1) >> UCPD_SR_TYPEC_VSTATE_CC2_Pos);
+    utl::log("PD: %d, %d", LL_UCPD_GetTypeCVstateCC1(UCPD1) >> UCPD_SR_TYPEC_VSTATE_CC1_Pos, LL_UCPD_GetTypeCVstateCC2(UCPD1) >> UCPD_SR_TYPEC_VSTATE_CC2_Pos);
 
     m_power_switch.set_state(true);
 
-    if(!m_adc) m_uart.printf("ADC initialization failed.");
+    if(!m_adc) utl::log("ADC initialization failed.");
 }
 
 void application::loop(void)
@@ -92,9 +93,9 @@ void application::loop(void)
         auto conv = m_current_sense.conversion();
         if(conv) {
             auto current = calculate_current(m_current_sense.to_voltage(conv.value()));
-            m_uart.printf("%dmA", current);
+            utl::log("%dmA", current);
         } else {
-            m_uart.printf("conversion failed.");
+            utl::log("conversion failed.");
         }
     }
 }
