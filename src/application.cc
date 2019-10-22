@@ -17,7 +17,9 @@ application::application() :
     m_ucpd{},
     m_power_switch{GPIOA, GPIO_PIN_1, utl::driver::pin::active_level::high, true, GPIO_NOPULL, GPIO_SPEED_FREQ_MEDIUM},
     m_adc{ADC1, 1000u, 3.3f},
-    m_current_sense{m_adc ? &m_adc.value() : nullptr, ADC_CHANNEL_1}
+    m_current_sense{m_adc ? &m_adc.value() : nullptr, ADC_CHANNEL_1},
+    m_led_pwm_source{TIM3, 5000u},
+    m_led_pwm{utl::dependent_t{}, utl::try_t{m_led_pwm_source}, hw::pwm::channel_id::CHANNEL_1}
 {
     if(!m_uart) while(1);
 }

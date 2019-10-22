@@ -6,6 +6,7 @@
 #include <driver/pin/push-pull.hh>
 #include <driver/adc.hh>
 #include <driver/ucpd.hh>
+#include <driver/pwm.hh>
 
 namespace hw = stm32g4::driver;
 
@@ -19,6 +20,8 @@ class application {
     hw::pin::push_pull                          m_power_switch;
     utl::construct<hw::adc>                     m_adc;
     hw::adc::adc_channel_t                      m_current_sense;
+    utl::construct<hw::pwm::source>             m_led_pwm_source;
+    utl::construct<hw::pwm::channel_t>          m_led_pwm;
 public:
     application();
     void start(void);
