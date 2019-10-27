@@ -12,25 +12,14 @@ extern "C" void SysTick_Handler(void) {
 
 static application::leds_t* s_leds = nullptr;
 
-extern "C" void TIM3_IRQHandler(void) {
-    s_leds->update_pwm();   
-}
+// extern "C" void TIM3_IRQHandler(void) {
+//     s_leds->update_pwm();   
+// }
+// extern "C" void DMA1_Channel1_IRQHandler(void)
+// {
+//   s_leds->service_dma();
+// }
 
-
-void DMA1_Stream3_IRQHandler(void)
-{
-    Application::getInstance().dmaRxISR();
-}
-
-void DMA1_Stream4_IRQHandler(void)
-{
-    Application::getInstance().dmaTxISR();
-}
-
-void SPI2_IRQHandler(void)
-{
-    Application::getInstance().spiISR();
-}
 
 application::application() :
     m_uart{USART2, 3000000u},
@@ -40,9 +29,11 @@ application::application() :
     m_power_switch{GPIOA, GPIO_PIN_1, utl::driver::pin::active_level::high, true, GPIO_NOPULL, GPIO_SPEED_FREQ_MEDIUM},
     m_adc{ADC1, 1000u, 3.3f},
     m_current_sense{utl::try_t{m_adc}, ADC_CHANNEL_1},
-    m_led_pwm_source{TIM3, 1000u},
+    m_led_dma{DMA1_Channel1, DMA_REQUEST_TIM3_CH1, DMA_MEMORY_TO_PERIPH, DMA_PINC_DISABLE, DMA_MINC_ENABLE,
+        DMA_PDATAALIGN_WORD, DMA_MDATAALIGN_WORD, DMA_CIRCULAR, DMA_PRIORITY_VERY_HIGH},
+    m_led_pwm_source{TIM3, 1250u},
     m_led_pwm{utl::try_t{m_led_pwm_source}, hw::pwm::channel_id::CHANNEL_1, hw::pwm::polarity::ACTIVE_HIGH},
-    m_leds{SPI1}
+    m_leds{utl::try_t{m_led_pwm_source}, utl::try_t{m_led_pwm}, utl::try_t{m_led_dma}}
 {
 
     //dimensions along which construct/try could have policies:
@@ -87,8 +78,21 @@ void application::start(void)
     //         utl::log("couldn't start pwm");
     //     }
     // });
-    NVIC_SetPriority(TIM3_IRQn, 0);
+    // NVIC_SetPriority(TIM3_IRQn, 0);
     NVIC_SetPriority(SysTick_IRQn, 1);
+
+    // m_leds.visit([&] (auto& leds) {
+    //     for(uint32_t idx=0; idx < leds.count(); idx++) {
+    //         if((idx + m_march_count) % 3 == 0) leds[idx] = ws2812::red;
+    //         if((idx + m_march_count) % 3 == 1) leds[idx] = ws2812::green;
+    //         if((idx + m_march_count) % 3 == 2) leds[idx] = ws2812::blue;
+    //     }
+    //     if(leds.write()) {
+    //         // m_march_count++;
+    //     } else {
+    //         utl::log("couldn't write led data");
+    //     }
+    // });
 }
 
 void application::loop(void)
@@ -109,9 +113,9 @@ void application::loop(void)
 
     m_leds.visit([&] (auto& leds) {
         for(uint32_t idx=0; idx < leds.count(); idx++) {
-            if((idx + m_march_count) % 3 == 0) leds[idx] = red;
-            if((idx + m_march_count) % 3 == 1) leds[idx] = green;
-            if((idx + m_march_count) % 3 == 2) leds[idx] = blue;
+            if((idx + m_march_count) % 3 == 0) leds[idx] = ws2812::red;
+            if((idx + m_march_count) % 3 == 1) leds[idx] = ws2812::green;
+            if((idx + m_march_count) % 3 == 2) leds[idx] = ws2812::blue;
         }
         if(leds.write()) {
             m_march_count++;
