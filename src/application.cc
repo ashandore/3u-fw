@@ -29,8 +29,7 @@ application::application() :
     m_power_switch{GPIOA, GPIO_PIN_1, utl::driver::pin::active_level::high, true, GPIO_NOPULL, GPIO_SPEED_FREQ_MEDIUM},
     m_adc{ADC1, 1000u, 3.3f},
     m_current_sense{utl::try_t{m_adc}, ADC_CHANNEL_1},
-    m_led_dma{DMA1_Channel1, DMA_REQUEST_TIM3_CH1, DMA_MEMORY_TO_PERIPH, DMA_PINC_DISABLE, DMA_MINC_ENABLE,
-        DMA_PDATAALIGN_WORD, DMA_MDATAALIGN_WORD, DMA_CIRCULAR, DMA_PRIORITY_VERY_HIGH},
+    m_led_dma{DMA1_Channel1, hw::dma::request::tim3_ch1},
     m_led_pwm_source{TIM3, 1250u},
     m_led_pwm{utl::try_t{m_led_pwm_source}, hw::pwm::channel_id::CHANNEL_1, hw::pwm::polarity::ACTIVE_HIGH},
     m_leds{utl::try_t{m_led_pwm_source}, utl::try_t{m_led_pwm}, utl::try_t{m_led_dma}}
@@ -83,9 +82,9 @@ void application::start(void)
 
     // m_leds.visit([&] (auto& leds) {
     //     for(uint32_t idx=0; idx < leds.count(); idx++) {
-    //         if((idx + m_march_count) % 3 == 0) leds[idx] = ws2812::red;
-    //         if((idx + m_march_count) % 3 == 1) leds[idx] = ws2812::green;
-    //         if((idx + m_march_count) % 3 == 2) leds[idx] = ws2812::blue;
+    //         if((idx + m_march_count) % 3 == 0) leds[idx] = hw::red;
+    //         if((idx + m_march_count) % 3 == 1) leds[idx] = hw::green;
+    //         if((idx + m_march_count) % 3 == 2) leds[idx] = hw::blue;
     //     }
     //     if(leds.write()) {
     //         // m_march_count++;
@@ -113,9 +112,9 @@ void application::loop(void)
 
     m_leds.visit([&] (auto& leds) {
         for(uint32_t idx=0; idx < leds.count(); idx++) {
-            if((idx + m_march_count) % 3 == 0) leds[idx] = ws2812::red;
-            if((idx + m_march_count) % 3 == 1) leds[idx] = ws2812::green;
-            if((idx + m_march_count) % 3 == 2) leds[idx] = ws2812::blue;
+            if((idx + m_march_count) % 3 == 0) leds[idx] = hw::red;
+            if((idx + m_march_count) % 3 == 1) leds[idx] = hw::green;
+            if((idx + m_march_count) % 3 == 2) leds[idx] = hw::blue;
         }
         if(leds.write()) {
             m_march_count++;

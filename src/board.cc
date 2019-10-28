@@ -73,42 +73,7 @@ extern "C" void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* tim_baseHandle)
 
     if(tim_baseHandle->Instance==TIM3)
     {
-        /* USER CODE BEGIN TIM3_MspInit 0 */
-
-        /* USER CODE END TIM3_MspInit 0 */
-        /* TIM3 clock enable */
         __HAL_RCC_TIM3_CLK_ENABLE();
-
-        __HAL_RCC_DMAMUX1_CLK_ENABLE();
-        __HAL_RCC_DMA1_CLK_ENABLE();
-
-        /* DMA interrupt init */
-        /* DMA1_Channel1_IRQn interrupt configuration */
-        HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
-
-        /* TIM3 interrupt Init */
-        // HAL_NVIC_SetPriority(TIM3_IRQn, 0, 0);
-        // HAL_NVIC_EnableIRQ(TIM3_IRQn);
-        /* USER CODE BEGIN TIM3_MspInit 1 */
-
-        /* USER CODE END TIM3_MspInit 1 */
-
-        hdma_tim3_ch1.Instance = DMA1_Channel1;
-        hdma_tim3_ch1.Init.Request = DMA_REQUEST_TIM3_CH1;
-        hdma_tim3_ch1.Init.Direction = DMA_MEMORY_TO_PERIPH;
-        hdma_tim3_ch1.Init.PeriphInc = DMA_PINC_DISABLE;
-        hdma_tim3_ch1.Init.MemInc = DMA_MINC_ENABLE;
-        hdma_tim3_ch1.Init.PeriphDataAlignment = DMA_PDATAALIGN_WORD;
-        hdma_tim3_ch1.Init.MemDataAlignment = DMA_MDATAALIGN_WORD;
-        hdma_tim3_ch1.Init.Mode = DMA_NORMAL;
-        hdma_tim3_ch1.Init.Priority = DMA_PRIORITY_HIGH;
-        if (HAL_DMA_Init(&hdma_tim3_ch1) != HAL_OK)
-        {
-        while(1);
-        }
-
-        __HAL_LINKDMA(tim_baseHandle,hdma[TIM_DMA_ID_CC1],hdma_tim3_ch1);
     }
 }
 
@@ -118,10 +83,6 @@ extern "C" void HAL_TIM_MspPostInit(TIM_HandleTypeDef* timHandle)
     GPIO_InitTypeDef GPIO_InitStruct{};
     if(timHandle->Instance==TIM3)
     {
-        /* USER CODE BEGIN TIM3_MspPostInit 0 */
-
-        /* USER CODE END TIM3_MspPostInit 0 */
-
         __HAL_RCC_GPIOA_CLK_ENABLE();
         /**TIM3 GPIO Configuration    
         PA1     ------> TIM3_CH2 
@@ -132,10 +93,6 @@ extern "C" void HAL_TIM_MspPostInit(TIM_HandleTypeDef* timHandle)
         GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
         GPIO_InitStruct.Alternate = GPIO_AF2_TIM3 ;
         HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-        /* USER CODE BEGIN TIM3_MspPostInit 1 */
-
-        /* USER CODE END TIM3_MspPostInit 1 */
     }
 }
 
