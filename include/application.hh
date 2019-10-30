@@ -16,7 +16,8 @@ class application {
 public:
     using uart_t = hw::uart<false>;
     using log_out_t = utl::logger::output<uart_t>;
-    using leds_t = hw::ws2812<85, hw::pwm::source, hw::dma::channel>;
+    using led_pwm_t = hw::pwm::source<utl::duration::ns>;
+    using leds_t = hw::ws2812<85, led_pwm_t, hw::dma::channel>;
 private:
     utl::construct<uart_t>                      m_uart;
     utl::construct<log_out_t>                   m_application_output;
@@ -26,8 +27,8 @@ private:
     utl::construct<hw::adc>                     m_adc;
     utl::construct<hw::adc::adc_channel_t>      m_current_sense;
     utl::construct<leds_t::dma_channel_t>       m_led_dma;
-    utl::construct<hw::pwm::source>             m_led_pwm_source; 
-    utl::construct<hw::pwm::dma_channel_t>      m_led_pwm;
+    utl::construct<led_pwm_t>                   m_led_pwm_source; 
+    utl::construct<led_pwm_t::dma_channel_t>    m_led_pwm;
     utl::construct<leds_t>                      m_leds;
     uint32_t                                    m_march_count = 0;
 public:

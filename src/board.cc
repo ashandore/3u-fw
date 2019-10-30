@@ -61,13 +61,6 @@ extern "C" void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc) {
     }
 }
 
-static DMA_HandleTypeDef hdma_tim3_ch1;
-
-extern "C" void DMA1_Channel1_IRQHandler(void)
-{
-  HAL_DMA_IRQHandler(&hdma_tim3_ch1);
-}
-
 extern "C" void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* tim_baseHandle)
 {
 

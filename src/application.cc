@@ -11,14 +11,10 @@ extern "C" void SysTick_Handler(void) {
 }
 
 static application::leds_t* s_leds = nullptr;
-
-// extern "C" void TIM3_IRQHandler(void) {
-//     s_leds->update_pwm();   
-// }
-// extern "C" void DMA1_Channel1_IRQHandler(void)
-// {
-//   s_leds->service_dma();
-// }
+extern "C" void DMA1_Channel1_IRQHandler(void)
+{
+  s_leds->service_dma();
+}
 
 
 application::application() :
@@ -30,7 +26,7 @@ application::application() :
     m_adc{ADC1, 1000u, 3.3f},
     m_current_sense{utl::try_t{m_adc}, ADC_CHANNEL_1},
     m_led_dma{DMA1_Channel1, hw::dma::request::tim3_ch1},
-    m_led_pwm_source{TIM3, 1250u},
+    m_led_pwm_source{TIM3, 1250_ns},
     m_led_pwm{utl::try_t{m_led_pwm_source}, hw::pwm::channel_id::CHANNEL_1, hw::pwm::polarity::ACTIVE_HIGH},
     m_leds{utl::try_t{m_led_pwm_source}, utl::try_t{m_led_pwm}, utl::try_t{m_led_dma}}
 {
@@ -51,47 +47,12 @@ application::application() :
 void application::start(void)
 {
     utl::log("application started");
-    utl::log("PD: %d mA", m_ucpd.get_current_advertisement_ma());    
+    utl::log("UCPD reports a %dmA advertisement from DFP", m_ucpd.get_current_advertisement_ma());    
 
     m_power_switch.set_state(true);
     if(!m_adc) utl::log("ADC initialization failed: %s", m_adc.error().message().data());
-
     if(!m_leds) utl::log("leds failed to initialize.");
-    
-
-    // m_led_pwm_source.visit([] (auto& source) {
-    //     source.set_period_ns(1250);
-    //     if(source.start()) {
-    //         utl::log("started pwm source");
-    //     } else {
-    //         utl::log("couldn't start pwm source");
-    //     }
-    // });
-
-    // m_led_pwm.visit([] (auto& pwm) {
-    //     pwm.set_width_ns(500);
-    //     if(pwm.start()) {
-    //         utl::log("started pwm");
-    //         utl::log("pulse width is %duS", pwm.width_ns());
-    //     } else {
-    //         utl::log("couldn't start pwm");
-    //     }
-    // });
-    // NVIC_SetPriority(TIM3_IRQn, 0);
     NVIC_SetPriority(SysTick_IRQn, 1);
-
-    // m_leds.visit([&] (auto& leds) {
-    //     for(uint32_t idx=0; idx < leds.count(); idx++) {
-    //         if((idx + m_march_count) % 3 == 0) leds[idx] = hw::red;
-    //         if((idx + m_march_count) % 3 == 1) leds[idx] = hw::green;
-    //         if((idx + m_march_count) % 3 == 2) leds[idx] = hw::blue;
-    //     }
-    //     if(leds.write()) {
-    //         // m_march_count++;
-    //     } else {
-    //         utl::log("couldn't write led data");
-    //     }
-    // });
 }
 
 void application::loop(void)
