@@ -1,0 +1,11 @@
+.roast
+build
+packages
+*.sw[po]
+*.sublime-project
+*.sublime-workspace
+.vscode
+.DS_Store
+LOG_*
+*.pyc
+*.code-workspace
