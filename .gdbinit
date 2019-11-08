@@ -1,4 +1,5 @@
 #set tdesc filename target.xml
+set target-async on
 target remote localhost:50000
 set remotetimeout 5
 mon arm semihosting enable

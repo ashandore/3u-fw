@@ -13,6 +13,12 @@ extern "C" void Board_Init(void)
 	
 }
 
+void HAL_MspInit(void)
+{
+    __HAL_RCC_SYSCFG_CLK_ENABLE();
+    __HAL_RCC_PWR_CLK_ENABLE();
+}
+
 extern "C" void HAL_UART_MspInit(UART_HandleTypeDef *huart)
 {
     GPIO_InitTypeDef  GPIO_InitStruct;
@@ -91,17 +97,16 @@ extern "C" void HAL_TIM_MspPostInit(TIM_HandleTypeDef* timHandle)
 
 extern "C" void SystemClock_Config(void)
 {
-    RCC_OscInitTypeDef RCC_OscInitStruct{};
-    RCC_ClkInitTypeDef RCC_ClkInitStruct{};
+    RCC_OscInitTypeDef RCC_OscInitStruct;
+    RCC_ClkInitTypeDef RCC_ClkInitStruct;
     /**Initializes the CPU, AHB and APB busses clocks
     */
-    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_HSI48;
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
     RCC_OscInitStruct.HSIState = RCC_HSI_ON;
     RCC_OscInitStruct.HSICalibrationValue = 64;
-    RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
     RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
     RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-    RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV2;
+    RCC_OscInitStruct.PLL.PLLM = 2;
     RCC_OscInitStruct.PLL.PLLN = 40;
     RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV7;
     RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
@@ -118,20 +123,10 @@ extern "C" void SystemClock_Config(void)
     RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
     RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
     RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
-    if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK)
+    if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_7) != HAL_OK)
     {
         while(1);
     }
-
-
-    RCC_PeriphCLKInitTypeDef PeriphClkInit{};
-    PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB;
-    PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_HSI48;
-    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-    {
-        while(1);
-    }
-
     /**Configure the main internal regulator output voltage
     */
     if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1) != HAL_OK)
@@ -152,13 +147,8 @@ board::board() {
     HAL_Init();
     SystemClock_Config();
     SystemCoreClockUpdate();
-    // HAL_EnableCompensationCell();
-
-    // HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq()/1000);
-    // HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
-    HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
-    //Initialize ST's HAL. This will also initialize the system tick.
     
+    HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);    
 
     SystemCoreClockUpdate();
 

@@ -1,9 +1,9 @@
 /* USER CODE BEGIN Header */
 /**
   ******************************************************************************
-  * @file           : usbd_conf.h
-  * @version        : v3.0_Cube
-  * @brief          : Header for usbd_conf.c file.
+  * @file           USB_Device/HID_Standalone/USB_Device/Target/usbd_conf.h
+  * @author         MCD Application Team
+  * @brief          Header for usbd_conf.c file.
   ******************************************************************************
   * @attention
   *
@@ -20,8 +20,8 @@
 /* USER CODE END Header */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef USBD_CONF_H_
-#define USBD_CONF_H_
+#ifndef __USBD_CONF__H__
+#define __USBD_CONF__H__
 
 #ifdef __cplusplus
  extern "C" {
@@ -70,15 +70,15 @@ extern PCD_HandleTypeDef hpcd_USB_FS;
 /*---------- -----------*/
 #define USBD_MAX_NUM_CONFIGURATION     1U
 /*---------- -----------*/
-#define USBD_MAX_STR_DESC_SIZ     512U
+#define USBD_MAX_STR_DESC_SIZ     64U
+/*---------- -----------*/
+#define USBD_SUPPORT_USER_STRING     0U
 /*---------- -----------*/
 #define USBD_DEBUG_LEVEL     0U
 /*---------- -----------*/
-#define USBD_LPM_ENABLED     1U
+#define USBD_LPM_ENABLED     0U
 /*---------- -----------*/
-#define USBD_SELF_POWERED     0U
-/*---------- -----------*/
-#define HID_FS_BINTERVAL     0xAU
+#define USBD_SELF_POWERED     1U
 
 /****************************************/
 /* #define for FS and HS identification */
@@ -174,6 +174,6 @@ void USBD_static_free(void *p);
 }
 #endif
 
-#endif /* USBD_CONF_H_ */
+#endif /* __USBD_CONF__H__ */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

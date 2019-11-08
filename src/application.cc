@@ -56,7 +56,7 @@ application::application() :
     if(!m_uart) while(1);
     if(m_leds) s_leds = &m_leds.value();
 
-    MX_USB_Device_Init();
+    
 }
 
 void application::start(void)
@@ -68,6 +68,9 @@ void application::start(void)
     if(!m_adc) utl::log("ADC initialization failed: %s", m_adc.error().message().data());
     if(!m_leds) utl::log("leds failed to initialize.");
     NVIC_SetPriority(SysTick_IRQn, 1);
+
+    HAL_Delay(500);
+    MX_USB_Device_Init();
 }
 
 void application::loop(void)
