@@ -51,6 +51,9 @@ def builder_common(context,builder):
     builder.append_include("include")
     builder.append_include("packages/stm32g4-libs/include")
     builder.append_include("packages/utl/include")
+    builder.append_include("include/usb")
+    builder.append_sys_include("ext/st-usb/Class/HID/Inc")
+    builder.append_sys_include("ext/st-usb/Core/Inc")
     builder.append_sys_include("packages/stm32g4-libs/include")
     builder.append_sys_include("packages/stm32g4-libs/include/device")
     builder.append_sys_include("packages/stm32g4-libs/include/hal")
@@ -105,6 +108,7 @@ def configure(context):
     context.cxx_builder.append_cflag("-fno-use-cxa-atexit")
     # include source to match against rules
     context.search(path="src", condition=condition)
+    context.search(path="ext", condition=condition)
     context.search(path="packages/stm32g4-libs/src/device/startup_stm32g431.c")
     context.search(path="packages/stm32g4-libs/src/syscalls.c")
     context.search(path="packages/stm32g4-libs/src/eabi.c")
@@ -125,11 +129,11 @@ def link(context,inputs,outputs):
 
 @Frontend.rule(["%.{c,S}"],["build/{MODE}/{0}.o","build/{MODE}/{0}.d"])
 def compile_c_source(context,inputs,outputs):
-    if "packages/stm32g4-libs/src" in str(inputs[0]):
+    if "packages/stm32g4-libs/src" in str(inputs[0]) or "ext" in str(inputs[0]):
         context.cee_builder.append_cflag("-Wno-everything")
     context.cee_builder.compile_source(inputs[0],outputs[0])
     context.cee_builder.perform_search(context,transform,outputs[1])
-    if "packages/stm32g4-libs/src" in str(inputs[0]):
+    if "packages/stm32g4-libs/src" in str(inputs[0]) or "ext" in str(inputs[0]):
         context.cee_builder.remove_cflag("-Wno-everything")
 
 @Frontend.rule(["%.cc"],["build/{MODE}/{0}.o","build/{MODE}/{0}.d"])

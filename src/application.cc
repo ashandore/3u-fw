@@ -16,6 +16,19 @@ extern "C" void DMA1_Channel1_IRQHandler(void)
   s_leds->service_dma();
 }
 
+#include "usb/usb_device.h"
+
+extern PCD_HandleTypeDef hpcd_USB_FS;
+extern "C" void USB_LP_IRQHandler(void)
+{
+  /* USER CODE BEGIN USB_LP_IRQn 0 */
+
+  /* USER CODE END USB_LP_IRQn 0 */
+  HAL_PCD_IRQHandler(&hpcd_USB_FS);
+  /* USER CODE BEGIN USB_LP_IRQn 1 */
+
+  /* USER CODE END USB_LP_IRQn 1 */
+}
 
 application::application() :
     m_uart{USART2, 3000000u},
@@ -42,6 +55,8 @@ application::application() :
 
     if(!m_uart) while(1);
     if(m_leds) s_leds = &m_leds.value();
+
+    MX_USB_Device_Init();
 }
 
 void application::start(void)
