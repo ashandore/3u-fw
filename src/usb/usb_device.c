@@ -39,7 +39,7 @@ void USBD_Clock_Config(void);
 
 static void Error_Handler(void) { while(1); }
 /* USB Device Core handle declaration. */
-static USBD_HandleTypeDef hUsbDeviceFS;
+USBD_HandleTypeDef hUsbDeviceFS;
 extern USBD_DescriptorsTypeDef HID_Desc;
 
 /*
@@ -80,7 +80,8 @@ void USBD_Clock_Config(void)
   RCC_CRSInitStruct.ErrorLimitValue = RCC_CRS_ERRORLIMIT_DEFAULT;
 
   /* Set the TRIM[5:0] to the default value */
-  RCC_CRSInitStruct.HSI48CalibrationValue = RCC_CRS_HSI48CALIBRATION_DEFAULT;
+  // RCC_CRSInitStruct.HSI48CalibrationValue = RCC_CRS_HSI48CALIBRATION_DEFAULT;
+  RCC_CRSInitStruct.HSI48CalibrationValue = 64;
 
   /* Start automatic synchronization */
   HAL_RCCEx_CRSConfig (&RCC_CRSInitStruct);

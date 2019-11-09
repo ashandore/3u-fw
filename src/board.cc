@@ -13,7 +13,7 @@ extern "C" void Board_Init(void)
 	
 }
 
-void HAL_MspInit(void)
+extern "C" void HAL_MspInit(void)
 {
     __HAL_RCC_SYSCFG_CLK_ENABLE();
     __HAL_RCC_PWR_CLK_ENABLE();
@@ -93,6 +93,24 @@ extern "C" void HAL_TIM_MspPostInit(TIM_HandleTypeDef* timHandle)
         GPIO_InitStruct.Alternate = GPIO_AF2_TIM3 ;
         HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
     }
+}
+
+extern "C" void HAL_SPI_MspInit(SPI_HandleTypeDef* hspi)
+{
+    GPIO_InitTypeDef GPIO_InitStruct{};
+    if(hspi->Instance==SPI2)
+    {
+        __HAL_RCC_SPI2_CLK_ENABLE();
+        __HAL_RCC_GPIOB_CLK_ENABLE();
+
+        GPIO_InitStruct.Pin = GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14;
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+        GPIO_InitStruct.Pull = GPIO_NOPULL;
+        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+        GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
+        HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+    }
+
 }
 
 extern "C" void SystemClock_Config(void)

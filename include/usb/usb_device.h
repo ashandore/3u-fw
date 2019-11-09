@@ -49,7 +49,7 @@
   * @brief Public variables.
   * @{
   */
-
+extern USBD_HandleTypeDef hUsbDeviceFS;
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
 
