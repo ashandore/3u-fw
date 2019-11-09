@@ -65,7 +65,7 @@ application::application() :
     m_leds{utl::try_t{m_led_pwm_source}, utl::try_t{m_led_pwm}, utl::try_t{m_led_dma}},
     m_spi_rx_dma{DMA1_Channel2, hw::dma::request::spi2_rx},
     m_spi_tx_dma{DMA1_Channel3, hw::dma::request::spi2_tx},
-    m_spi{SPI2, utl::imprecise{1000_KHz, 1500_KHz}, hw::spi::direction::both, 
+    m_spi{SPI2, utl::imprecise{300_KHz, 500_KHz}, hw::spi::direction::both, 
         hw::spi::polarity::POL1, hw::spi::phase::PHA0,
         hw::spi::data_size::bits_8, false, false, false, 
         utl::try_t{m_spi_rx_dma}, utl::try_t{m_spi_tx_dma}}
