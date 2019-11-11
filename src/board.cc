@@ -3,7 +3,7 @@
 #include <stm32g4xx_hal_gpio.h>
 #include <stm32g4xx_hal_dma.h>
 #include <stdarg.h>
-#include <platform/board.hh>
+#include <utl/platform/board.hh>
 // #include "stm32g4xx_hal_rcc.h"
 
 /* Set up and initialize all required blocks and functions related to the

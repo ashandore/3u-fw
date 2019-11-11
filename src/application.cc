@@ -10,10 +10,12 @@ extern "C" void SysTick_Handler(void) {
     //this may need a call to   HAL_SYSTICK_IRQHandler();
 }
 
+//FIXME: these are terrible
 static application::leds_t* s_leds = nullptr;
 static application::spi_t::rx_dma_channel_t* s_spi_rx_dma = nullptr;
 static application::spi_t::tx_dma_channel_t* s_spi_tx_dma = nullptr;
 static application::spi_t* s_spi = nullptr;
+static application::usb_t* s_usb = nullptr;
 
 
 extern "C" void DMA1_Channel1_IRQHandler(void)
@@ -36,19 +38,9 @@ extern "C" void SPI2_IRQHandler(void)
     s_spi->service();
 }
 
-#include "usb/usb_device.h"
-#include "usbd_hid.h"
-
-extern PCD_HandleTypeDef hpcd_USB_FS;
 extern "C" void USB_LP_IRQHandler(void)
 {
-  /* USER CODE BEGIN USB_LP_IRQn 0 */
-
-  /* USER CODE END USB_LP_IRQn 0 */
-  HAL_PCD_IRQHandler(&hpcd_USB_FS);
-  /* USER CODE BEGIN USB_LP_IRQn 1 */
-
-  /* USER CODE END USB_LP_IRQn 1 */
+    s_usb->service();
 }
 
 application::application() :
@@ -56,7 +48,7 @@ application::application() :
     m_application_output{utl::try_t{m_uart}},
     m_logger_setup{m_application_output.has_value() ? &m_application_output.value() : nullptr},
     m_ucpd{},
-    m_power_switch{GPIOA, GPIO_PIN_1, utl::driver::pin::active_level::high, true, GPIO_NOPULL, GPIO_SPEED_FREQ_MEDIUM},
+    m_power_switch{GPIOA, GPIO_PIN_1, utl::hal::pin::active_level::high, true, GPIO_NOPULL, GPIO_SPEED_FREQ_MEDIUM},
     m_adc{ADC1, 1000u, 3.3f},
     m_current_sense{utl::try_t{m_adc}, ADC_CHANNEL_1},
     m_led_dma{DMA1_Channel1, hw::dma::request::tim3_ch1},
@@ -68,7 +60,8 @@ application::application() :
     m_spi{SPI2, utl::imprecise{300_KHz, 500_KHz}, hw::spi::direction::both, 
         hw::spi::polarity::POL1, hw::spi::phase::PHA0,
         hw::spi::data_size::bits_8, false, false, false, 
-        utl::try_t{m_spi_rx_dma}, utl::try_t{m_spi_tx_dma}}
+        utl::try_t{m_spi_rx_dma}, utl::try_t{m_spi_tx_dma}},
+    m_usb{}
 {
     //dimensions along which construct/try could have policies:
     // - whether to try unboxing by default or not (need to have a forward equivalent to try...)
@@ -84,54 +77,56 @@ application::application() :
     if(m_spi_rx_dma) s_spi_rx_dma = &m_spi_rx_dma.value();
     if(m_spi_tx_dma) s_spi_tx_dma = &m_spi_tx_dma.value();  
     if(m_spi) s_spi = &m_spi.value();  
+    if(m_usb) s_usb = &m_usb.value();
 }
-
-extern USBD_HandleTypeDef hUsbDeviceFS;
 
 void application::start(void)
 {
+    utl::log("");
     utl::log("application started");
     utl::log("UCPD reports a %dmA advertisement from DFP", m_ucpd.get_current_advertisement_ma());    
 
     m_power_switch.set_state(true);
     if(!m_adc) utl::log("ADC initialization failed: %s", m_adc.error().message().data());
     if(!m_leds) utl::log("leds failed to initialize.");
+    if(!m_usb) utl::log("USB failed to initialize.");
+    if(!m_spi) utl::log("spi initialization failed!");   
     NVIC_SetPriority(SysTick_IRQn, 1);
 
-    HAL_Delay(100);
-    MX_USB_Device_Init();
-
-
-
-    // HAL_Delay(100);
-
-    if ((reinterpret_cast<USBD_HandleTypeDef*>(hpcd_USB_FS.pData)->dev_remote_wakeup == 1) &&
-        (reinterpret_cast<USBD_HandleTypeDef*>(hpcd_USB_FS.pData)->dev_state ==
-        USBD_STATE_SUSPENDED))
-    {
-        utl::log("remote wakeup appears to be enabled.");
-    }
-    else if (reinterpret_cast<USBD_HandleTypeDef*>(hpcd_USB_FS.pData)->dev_state ==
-        USBD_STATE_CONFIGURED)
-    {        
-        uint8_t HID_Buffer[4] = {0,0,0,0};
-        USBD_HID_SendReport(&hUsbDeviceFS, HID_Buffer, 4);
-        utl::log("sent HID report");
-    }
-    else
-    {
-        utl::log("usb is neither suspended nor configured.");
-    }
-
-
-    utl::log("USB device state is %d", reinterpret_cast<USBD_HandleTypeDef*>(hpcd_USB_FS.pData)->dev_state);
-
-    if(!m_spi) utl::log("spi initialization failed!");    
+    HAL_Delay(100);    
+    
+    m_usb.visit([&](auto& usb) {
+        switch(usb.state()) {
+            case utl::hal::usbd::state::DEFAULT:
+                utl::log("USB is in default state");
+                break;
+            case utl::hal::usbd::state::ADDRESSED:
+                utl::log("USB is addressed");
+                break;
+            case utl::hal::usbd::state::SUSPENDED:
+                if(usb.dev_remote_wakeup()) {
+                    utl::log("WARN: usb remote wakeup appears to be enabled.");
+                } else {
+                    utl::log("USB is suspended");
+                }
+                break;
+            case utl::hal::usbd::state::CONFIGURED:
+                utl::log("USB is configured.");
+                break;
+            case utl::hal::usbd::state::UNKNOWN:
+                utl::log("USB state is unknown...");
+                break;
+        }
+    });
 }
 
 void application::loop(void)
 {
     HAL_Delay(50);
+
+    // m_usb.connection().visit([&](auto& connection) {
+    //     connection.send_report(utl::hal::usbd::hid::keyboard_report{modifiers,keycodes})
+    // });
 
     m_current_sense.visit([&](auto& sense) {
         auto calculate_current = [](const uint16_t conversion) {
@@ -153,10 +148,10 @@ void application::loop(void)
         auto res = spi.transact(send, recv, matrix_columns);
         if(res) {
             spi.wait();
-            utl::log("got columns:");
-            for(uint8_t i=0; i<matrix_columns; i++) {
-                utl::log("\t%x", recv[i]);
-            }
+            // utl::log("got columns:");
+            // for(uint8_t i=0; i<matrix_columns; i++) {
+            //     utl::log("\t%x", recv[i]);
+            // }
         } else {
             utl::log("spi transaction failed with %s", res.error().message().data());
         }

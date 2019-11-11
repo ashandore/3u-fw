@@ -26,20 +26,14 @@
 #include "usbd_desc.h"
 #include "usbd_hid.h"
 
-/* USER CODE BEGIN PV */
-/* Private variables ---------------------------------------------------------*/
-extern PCD_HandleTypeDef hpcd_USB_FS;
-/* USER CODE END PV */
-
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 extern void SystemClockConfig_Resume(void);
-void USBD_Clock_Config(void);
+
 /* USER CODE END PFP */
 
 static void Error_Handler(void) { while(1); }
 /* USB Device Core handle declaration. */
-USBD_HandleTypeDef hUsbDeviceFS;
 extern USBD_DescriptorsTypeDef HID_Desc;
 
 /*
@@ -87,40 +81,5 @@ void USBD_Clock_Config(void)
   HAL_RCCEx_CRSConfig (&RCC_CRSInitStruct);
 }
 
-/**
-  * Init USB device Library, add supported class and start the library
-  * @retval None
-  */
-void MX_USB_Device_Init(void)
-{
-  /* USER CODE BEGIN USB_Device_Init_PreTreatment */
-
-  /* USB Clock Initialization */
-   USBD_Clock_Config();
-
-  /* USER CODE END USB_Device_Init_PreTreatment */
-
-  /* Init Device Library, add supported class and start the library. */
-  if (USBD_Init(&hUsbDeviceFS, &HID_Desc, DEVICE_FS) != USBD_OK) {
-    Error_Handler();
-  }
-  if (USBD_RegisterClass(&hUsbDeviceFS, &USBD_HID) != USBD_OK) {
-    Error_Handler();
-  }
-  if (USBD_Start(&hUsbDeviceFS) != USBD_OK) {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USB_Device_Init_PostTreatment */
-
-  /* USER CODE END USB_Device_Init_PostTreatment */
-}
-
-/**
-  * @}
-  */
-
-/**
-  * @}
-  */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

@@ -41,7 +41,6 @@
 
 /* USER CODE END PV */
 
-PCD_HandleTypeDef hpcd_USB_FS;
 static void Error_Handler(void) { while(1); }
 
 /* USER CODE BEGIN 0 */
@@ -417,47 +416,46 @@ void HAL_PCD_DisconnectCallback(PCD_HandleTypeDef *hpcd)
   */
 USBD_StatusTypeDef USBD_LL_Init(USBD_HandleTypeDef *pdev)
 {
+  PCD_HandleTypeDef* pusb = pdev->pData;
   /* Init USB Ip. */
-  hpcd_USB_FS.pData = pdev;
-  /* Link the driver to the stack. */
-  pdev->pData = &hpcd_USB_FS;
+  pusb->pData = pdev;
 
-  hpcd_USB_FS.Instance = USB;
-  hpcd_USB_FS.Init.dev_endpoints = 8;
-  hpcd_USB_FS.Init.speed = PCD_SPEED_FULL;
-  hpcd_USB_FS.Init.phy_itface = PCD_PHY_EMBEDDED;
-  hpcd_USB_FS.Init.Sof_enable = DISABLE;
-  hpcd_USB_FS.Init.low_power_enable = DISABLE;
-  hpcd_USB_FS.Init.lpm_enable = DISABLE;
-  hpcd_USB_FS.Init.battery_charging_enable = DISABLE;
+  pusb->Instance = USB;
+  pusb->Init.dev_endpoints = 8;
+  pusb->Init.speed = PCD_SPEED_FULL;
+  pusb->Init.phy_itface = PCD_PHY_EMBEDDED;
+  pusb->Init.Sof_enable = DISABLE;
+  pusb->Init.low_power_enable = DISABLE;
+  pusb->Init.lpm_enable = DISABLE;
+  pusb->Init.battery_charging_enable = DISABLE;
 
   #if (USE_HAL_PCD_REGISTER_CALLBACKS == 1U)
   /* register Msp Callbacks (before the Init) */
-  HAL_PCD_RegisterCallback(&hpcd_USB_FS, HAL_PCD_MSPINIT_CB_ID, PCD_MspInit);
-  HAL_PCD_RegisterCallback(&hpcd_USB_FS, HAL_PCD_MSPDEINIT_CB_ID, PCD_MspDeInit);
+  HAL_PCD_RegisterCallback(pusb, HAL_PCD_MSPINIT_CB_ID, PCD_MspInit);
+  HAL_PCD_RegisterCallback(pusb, HAL_PCD_MSPDEINIT_CB_ID, PCD_MspDeInit);
   #endif /* USE_HAL_PCD_REGISTER_CALLBACKS */
 
-  if (HAL_PCD_Init(&hpcd_USB_FS) != HAL_OK)
+  if (HAL_PCD_Init(pusb) != HAL_OK)
   {
     Error_Handler( );
   }
 
 #if (USE_HAL_PCD_REGISTER_CALLBACKS == 1U)
   /* Register USB PCD CallBacks */
-  HAL_PCD_RegisterCallback(&hpcd_USB_FS, HAL_PCD_SOF_CB_ID, PCD_SOFCallback);
-  HAL_PCD_RegisterCallback(&hpcd_USB_FS, HAL_PCD_SETUPSTAGE_CB_ID, PCD_SetupStageCallback);
-  HAL_PCD_RegisterCallback(&hpcd_USB_FS, HAL_PCD_RESET_CB_ID, PCD_ResetCallback);
-  HAL_PCD_RegisterCallback(&hpcd_USB_FS, HAL_PCD_SUSPEND_CB_ID, PCD_SuspendCallback);
-  HAL_PCD_RegisterCallback(&hpcd_USB_FS, HAL_PCD_RESUME_CB_ID, PCD_ResumeCallback);
-  HAL_PCD_RegisterCallback(&hpcd_USB_FS, HAL_PCD_CONNECT_CB_ID, PCD_ConnectCallback);
-  HAL_PCD_RegisterCallback(&hpcd_USB_FS, HAL_PCD_DISCONNECT_CB_ID, PCD_DisconnectCallback);
+  HAL_PCD_RegisterCallback(pusb, HAL_PCD_SOF_CB_ID, PCD_SOFCallback);
+  HAL_PCD_RegisterCallback(pusb, HAL_PCD_SETUPSTAGE_CB_ID, PCD_SetupStageCallback);
+  HAL_PCD_RegisterCallback(pusb, HAL_PCD_RESET_CB_ID, PCD_ResetCallback);
+  HAL_PCD_RegisterCallback(pusb, HAL_PCD_SUSPEND_CB_ID, PCD_SuspendCallback);
+  HAL_PCD_RegisterCallback(pusb, HAL_PCD_RESUME_CB_ID, PCD_ResumeCallback);
+  HAL_PCD_RegisterCallback(pusb, HAL_PCD_CONNECT_CB_ID, PCD_ConnectCallback);
+  HAL_PCD_RegisterCallback(pusb, HAL_PCD_DISCONNECT_CB_ID, PCD_DisconnectCallback);
   /* USER CODE BEGIN RegisterCallBackFirstPart */
 
   /* USER CODE END RegisterCallBackFirstPart */
-  HAL_PCD_RegisterDataOutStageCallback(&hpcd_USB_FS, PCD_DataOutStageCallback);
-  HAL_PCD_RegisterDataInStageCallback(&hpcd_USB_FS, PCD_DataInStageCallback);
-  HAL_PCD_RegisterIsoOutIncpltCallback(&hpcd_USB_FS, PCD_ISOOUTIncompleteCallback);
-  HAL_PCD_RegisterIsoInIncpltCallback(&hpcd_USB_FS, PCD_ISOINIncompleteCallback);
+  HAL_PCD_RegisterDataOutStageCallback(pusb, PCD_DataOutStageCallback);
+  HAL_PCD_RegisterDataInStageCallback(pusb, PCD_DataInStageCallback);
+  HAL_PCD_RegisterIsoOutIncpltCallback(pusb, PCD_ISOOUTIncompleteCallback);
+  HAL_PCD_RegisterIsoInIncpltCallback(pusb, PCD_ISOINIncompleteCallback);
   /* USER CODE BEGIN RegisterCallBackSecondPart */
 
   /* USER CODE END RegisterCallBackSecondPart */
