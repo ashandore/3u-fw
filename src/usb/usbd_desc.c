@@ -63,10 +63,10 @@
   * @{
   */
 
-#define USBD_VID     0x483
+#define USBD_VID     0x1209
 #define USBD_LANGID_STRING     1033
 #define USBD_MANUFACTURER_STRING     "STMicroelectronics"
-#define USBD_PID     0x5710
+#define USBD_PID     0x3EEB
 #define USBD_PRODUCT_STRING     "STM32 Human interface"
 #define USBD_CONFIGURATION_STRING     "HID Config"
 #define USBD_INTERFACE_STRING     "HID Interface"

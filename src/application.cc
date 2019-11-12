@@ -46,7 +46,7 @@ extern "C" void USB_LP_IRQHandler(void)
 application::application() :
     m_uart{USART2, 3000000u},
     m_application_output{utl::try_t{m_uart}},
-    m_logger_setup{m_application_output.has_value() ? &m_application_output.value() : nullptr},
+    m_logger_setup{m_application_output},
     m_ucpd{},
     m_power_switch{GPIOA, GPIO_PIN_1, utl::hal::pin::active_level::high, true, GPIO_NOPULL, GPIO_SPEED_FREQ_MEDIUM},
     m_adc{ADC1, 1000u, 3.3f},
@@ -91,43 +91,56 @@ void application::start(void)
     if(!m_leds) utl::log("leds failed to initialize.");
     if(!m_usb) utl::log("USB failed to initialize.");
     if(!m_spi) utl::log("spi initialization failed!");   
-    NVIC_SetPriority(SysTick_IRQn, 1);
+    NVIC_SetPriority(SysTick_IRQn, 1);     
 
-    HAL_Delay(100);    
-    
     m_usb.visit([&](auto& usb) {
         switch(usb.state()) {
-            case utl::hal::usbd::state::DEFAULT:
+            case utl::hal::usb::state::DEFAULT:
                 utl::log("USB is in default state");
                 break;
-            case utl::hal::usbd::state::ADDRESSED:
+            case utl::hal::usb::state::ADDRESSED:
                 utl::log("USB is addressed");
                 break;
-            case utl::hal::usbd::state::SUSPENDED:
+            case utl::hal::usb::state::SUSPENDED:
                 if(usb.dev_remote_wakeup()) {
                     utl::log("WARN: usb remote wakeup appears to be enabled.");
                 } else {
                     utl::log("USB is suspended");
                 }
                 break;
-            case utl::hal::usbd::state::CONFIGURED:
+            case utl::hal::usb::state::CONFIGURED:
                 utl::log("USB is configured.");
                 break;
-            case utl::hal::usbd::state::UNKNOWN:
+            case utl::hal::usb::state::UNKNOWN:
                 utl::log("USB state is unknown...");
                 break;
         }
-    });
+    });  
+
+    HAL_Delay(100);
 }
 
 void application::loop(void)
 {
-    HAL_Delay(50);
+    HAL_Delay(10);
 
-    // m_usb.connection().visit([&](auto& connection) {
-    //     connection.send_report(utl::hal::usbd::hid::keyboard_report{modifiers,keycodes})
-    // });
+    //Next big step might be a better way to manage tasks.
 
+    //HID Report
+    m_usb.visit([&](auto& connection) {
+        hid::keycode keycode{};
+        
+        if(m_matrix[1] > 0) {
+            keycode = hid::keycode{0x0A};
+        } else {
+            keycode = hid::keycode{0x00};
+        }
+        
+        auto report = hid::keyboard_report{keycode};
+        utl::ignore_result(connection.send_report(report));
+    });
+
+    //Current Sensing
     m_current_sense.visit([&](auto& sense) {
         auto calculate_current = [](const uint16_t conversion) {
             return 161u*static_cast<uint32_t>(conversion)/100u;
@@ -136,37 +149,30 @@ void application::loop(void)
         sense.conversion().visit([&](uint16_t& conv) {
             auto current = calculate_current(conv);
             utl::maybe_unused(current);
-            // utl::log("Load current: %dmA", current);
         });
     });
 
+    //Matrix Scanning
     m_spi.visit([&](auto& spi) {
-        const uint8_t matrix_columns = 19;
-        uint8_t send[matrix_columns] = {};
-        uint8_t recv[matrix_columns];
-
-        auto res = spi.transact(send, recv, matrix_columns);
-        if(res) {
-            spi.wait();
-            // utl::log("got columns:");
-            // for(uint8_t i=0; i<matrix_columns; i++) {
-            //     utl::log("\t%x", recv[i]);
-            // }
-        } else {
+        auto res = spi.transact(m_dummy_send, m_matrix, sizeof(m_matrix));
+        if(!res) {
             utl::log("spi transaction failed with %s", res.error().message().data());
         }
     });
 
-    m_leds.visit([&] (auto& leds) {
-        for(uint32_t idx=0; idx < leds.count(); idx++) {
-            if((idx + m_march_count) % 3 == 0) leds[idx] = hw::red;
-            if((idx + m_march_count) % 3 == 1) leds[idx] = hw::green;
-            if((idx + m_march_count) % 3 == 2) leds[idx] = hw::blue;
-        }
-        if(leds.write()) {
-            m_march_count++;
-        } else {
-            utl::log("couldn't write led data");
-        }
-    });
+    //RGB
+    if(HAL_GetTick() % 250 < 15) {
+        m_leds.visit([&] (auto& leds) {
+            for(uint32_t idx=0; idx < leds.count(); idx++) {
+                if((idx + m_march_count) % 3 == 0) leds[idx] = hw::red;
+                if((idx + m_march_count) % 3 == 1) leds[idx] = hw::green;
+                if((idx + m_march_count) % 3 == 2) leds[idx] = hw::blue;
+            }
+            if(leds.write()) {
+                m_march_count++;
+            } else {
+                utl::log("couldn't write led data");
+            }
+        });
+    }
 }
