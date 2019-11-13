@@ -63,17 +63,10 @@ application::application() :
         utl::try_t{m_spi_rx_dma}, utl::try_t{m_spi_tx_dma}},
     m_usb{},
     m_matrix{},
-    m_test_key{m_matrix, 1, 0b11111111}
+    m_keycode_buffer{},
+    m_test_key{},
+    m_test_keycode{0x0A, m_keycode_buffer}
 {
-    //dimensions along which construct/try could have policies:
-    // - whether to try unboxing by default or not (need to have a forward equivalent to try...)
-    // - what to do when unboxing fails - where should the error come from?
-    //the ability to specify a fallback value would be useful.
-    //  it'sagraph
-    //the ability to specify an error code in case of unboxing failure would be useful.
-    //what if it was actually a dependency graph?
-    //make a try function.
-
     if(!m_uart) while(1);
     if(m_leds) s_leds = &m_leds.value();
     if(m_spi_rx_dma) s_spi_rx_dma = &m_spi_rx_dma.value();
@@ -122,34 +115,18 @@ void application::start(void)
     HAL_Delay(100);
 }
 
-struct keymap {
-    //this maps an individual position in the matrix to a keycode.
-
-};
-
-//oh, shit. can I make the matrix map directly to key objects?
-//I can.
-
-
-
 void application::loop(void)
 {
     HAL_Delay(10);
 
     //Next big step might be a better way to manage tasks.
 
+    keeb::update(m_matrix, m_test_key, m_test_keycode);
+
+
     //HID Report
     m_usb.visit([&](auto& connection) {
-        hid::keycode keycode{};
-        // if(m_test_key)
-        if(m_test_key) {
-            keycode = hid::keycode{0x0A};
-        } else {
-            keycode = hid::keycode{0x00};
-        }
-        
-        auto report = hid::keyboard_report{keycode};
-        utl::ignore_result(connection.send_report(report));
+        utl::ignore_result(connection.send_report(m_keycode_buffer.report()));
     });
 
     //Current Sensing
@@ -167,7 +144,10 @@ void application::loop(void)
     //Matrix Scanning
     m_spi.visit([&](auto& spi) {
         
-        auto res = spi.transact(m_dummy_send, dma_cast<uint8_t>(m_matrix), dma_sizeof(m_matrix));
+        auto res = spi.transact(m_dummy_send, 
+            utl::hal::dma::dma_cast<uint8_t>(m_matrix), 
+            utl::hal::dma::dma_sizeof(m_matrix)
+        );
         if(!res) {
             utl::log("spi transaction failed with %s", res.error().message().data());
         }
