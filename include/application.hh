@@ -21,7 +21,7 @@ public:
     using uart_t = hw::uart<false>;
     using log_out_t = utl::logger::output<uart_t>;
     using led_pwm_t = hw::pwm::source<utl::duration::ns>;
-    using leds_t = hw::ws2812<85, led_pwm_t, hw::dma::channel>;
+    using leds_t = hw::ws2812<85, led_pwm_t, hw::dma::channel, utl::color::hsv>;
     using spi_t = hw::spi::dma_master;
     using usb_t = hw::usb::hid::device<hid::keyboard_report>;
     using matrix_t = volatile const keeb::matrix<18, uint8_t, true>;

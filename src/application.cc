@@ -16,6 +16,8 @@ static application::spi_t::tx_dma_channel_t* s_spi_tx_dma = nullptr;
 static application::spi_t* s_spi = nullptr;
 static application::usb_t* s_usb = nullptr;
 
+static constexpr uint8_t MAX_LED_BRIGHTNESS = 0x08;
+
 
 extern "C" void DMA1_Channel1_IRQHandler(void)
 {
@@ -75,7 +77,7 @@ application::application() :
             {{sc::num7, m_report},      {sc::u, m_report},      {sc::j, m_report},      {sc::n, m_report},      {sc::none, m_report}},
             {{sc::num8, m_report},      {sc::i, m_report},      {sc::k, m_report},      {sc::m, m_report},      {sc::space, m_report}},
             {{sc::num9, m_report},      {sc::o, m_report},      {sc::l, m_report},      {sc::comma, m_report},  {sc::ralt, m_report}},
-            {{sc::num0, m_report},      {sc::p, m_report},      {sc::semicolon, m_report},{sc::dot, m_report},  {sc::f13, m_report}},
+            {{sc::num0, m_report},      {sc::p, m_report},      {sc::semicolon, m_report},{sc::dot, m_report},  {sc::esc, m_report}},
             {{sc::minus, m_report},     {sc::lbrace, m_report}, {sc::apostrophe, m_report},{sc::slash, m_report},{sc::rctrl, m_report}},
             {{sc::equal, m_report},     {sc::rbrace, m_report}, {sc::none, m_report},  {sc::rshift, m_report}, {sc::left, m_report}},
             {{sc::backspace, m_report}, {sc::lslash, m_report}, {sc::enter, m_report},   {sc::up, m_report},     {sc::down, m_report}},
@@ -131,6 +133,14 @@ void application::start(void)
         }
     });  
 
+    m_leds.visit([&] (auto& leds) {
+        for(uint32_t idx=0; idx < leds.count(); idx++) {
+            leds[idx].v = MAX_LED_BRIGHTNESS;
+            leds[idx].h = static_cast<uint8_t>(idx % 256);
+            leds[idx].s = 255;
+        }
+    });
+
     HAL_Delay(100);
 }
 
@@ -157,6 +167,9 @@ void application::loop(void)
         sense.conversion().visit([&](uint16_t& conv) {
             auto current = calculate_current(conv);
             utl::maybe_unused(current);
+            if(current > m_ucpd.get_current_advertisement_ma()) {
+                utl::log("WARN: current usage is above advertised limit!");
+            }
         });
     });
 
@@ -173,12 +186,11 @@ void application::loop(void)
     });
 
     //RGB
-    if(HAL_GetTick() % 250 < 15) {
+    
+    if(HAL_GetTick() % 50 < 15) {
         m_leds.visit([&] (auto& leds) {
             for(uint32_t idx=0; idx < leds.count(); idx++) {
-                if((idx + m_march_count) % 3 == 0) leds[idx] = hw::red;
-                if((idx + m_march_count) % 3 == 1) leds[idx] = hw::green;
-                if((idx + m_march_count) % 3 == 2) leds[idx] = hw::blue;
+                leds[idx].h += 5;
             }
             if(leds.write()) {
                 m_march_count++;
