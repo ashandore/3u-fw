@@ -65,28 +65,7 @@ application::application() :
     m_usb{},
     m_matrix{},
     m_report{},
-    m_keyboard{m_matrix, {},
-        {{
-            {{sc::grave, m_report},     {sc::tab, m_report},    {sc::lctrl, m_report},  {sc::lshift, m_report}, {sc::lctrl, m_report}},
-            {{sc::num1, m_report},      {sc::q, m_report},      {sc::a, m_report},      {sc::none, m_report},   {sc::f13, m_report}},
-            {{sc::num2, m_report},      {sc::w, m_report},      {sc::s, m_report},      {sc::z, m_report},      {sc::lmeta, m_report}},
-            {{sc::num3, m_report},      {sc::e, m_report},      {sc::d, m_report},      {sc::x, m_report},      {sc::lalt, m_report}},
-            {{sc::num4, m_report},      {sc::r, m_report},      {sc::f, m_report},      {sc::c, m_report},      {sc::space, m_report}},
-            {{sc::num5, m_report},      {sc::t, m_report},      {sc::g, m_report},      {sc::v, m_report},      {sc::lshift, m_report}},
-            {{sc::num6, m_report},      {sc::y, m_report},      {sc::h, m_report},      {sc::b, m_report},      {sc::lctrl, m_report}},
-            {{sc::num7, m_report},      {sc::u, m_report},      {sc::j, m_report},      {sc::n, m_report},      {sc::none, m_report}},
-            {{sc::num8, m_report},      {sc::i, m_report},      {sc::k, m_report},      {sc::m, m_report},      {sc::space, m_report}},
-            {{sc::num9, m_report},      {sc::o, m_report},      {sc::l, m_report},      {sc::comma, m_report},  {sc::ralt, m_report}},
-            {{sc::num0, m_report},      {sc::p, m_report},      {sc::semicolon, m_report},{sc::dot, m_report},  {sc::esc, m_report}},
-            {{sc::minus, m_report},     {sc::lbrace, m_report}, {sc::apostrophe, m_report},{sc::slash, m_report},{sc::rctrl, m_report}},
-            {{sc::equal, m_report},     {sc::rbrace, m_report}, {sc::none, m_report},  {sc::rshift, m_report}, {sc::left, m_report}},
-            {{sc::backspace, m_report}, {sc::lslash, m_report}, {sc::enter, m_report},   {sc::up, m_report},     {sc::down, m_report}},
-            {{sc::del, m_report},       {sc::num7, m_report},   {sc::num4, m_report},   {sc::num1, m_report},   {sc::right, m_report}},
-            {{sc::slash, m_report},     {sc::num8, m_report},   {sc::num5, m_report},   {sc::num2, m_report},   {sc::num0, m_report}},
-            {{sc::kpasterisk, m_report},{sc::num9, m_report},   {sc::num6, m_report},  {sc::num3, m_report},   {sc::dot, m_report}},
-            {{sc::minus, m_report},     {sc::kpplus, m_report}, {sc::none, m_report},   {sc::none, m_report},   {sc::none, m_report}}
-        }}
-    }
+    m_keyboard{m_matrix, {}}
 {
     if(!m_uart) while(1);
     if(m_leds) s_leds = &m_leds.value();

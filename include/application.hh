@@ -12,9 +12,24 @@
 #include <driver/spi.hh>
 #include <driver/usb.hh>
 #include "keeb.hh"
+#include "key.hh"
+#include "macro.hh"
+#include "pokey.hh"
 
 namespace hw = stm32g4::driver;
 namespace hid = utl::hal::usb::hid;
+
+//what if state is stored on the input itself?
+//it takes a template of the macro types that can be attached to it.
+//it initializes a tuple of that state.
+//input<input_t,macro_ts>
+//then, a macro is just a reified function.
+//it can access any state on the input using the type of that state.
+//then, all macros can be of a consistent type.
+//okay. which means all inputs are of a different type, and I need to
+//specify it somehow. this is at least easier to specify...
+
+//and there's the question of storage. still.
 
 class application {
 public:
@@ -24,9 +39,8 @@ public:
     using leds_t = hw::ws2812<85, led_pwm_t, hw::dma::channel, utl::color::hsv>;
     using spi_t = hw::spi::dma_master;
     using usb_t = hw::usb::hid::device<hid::keyboard_report>;
-    using matrix_t = volatile const keeb::matrix<18, uint8_t, true>;
-    using input_t = keeb::input::key;
-    using action_t = keeb::action::keycode;
+    // using matrix_t = volatile const keeb::matrix<18, uint8_t, true>;
+    using matrix_t = volatile const pokey::scan_matrix_t;
     
 private:
     utl::construct<uart_t>                          m_uart;
@@ -48,7 +62,7 @@ private:
     uint8_t                                         m_dummy_send[matrix_t::size()];
 
     hid::keyboard_report                            m_report;
-    keeb::keyboard<matrix_t,input_t,action_t,5>     m_keyboard;
+    keeb::keyboard<pokey>                           m_keyboard;
     uint32_t                                        m_march_count;
 public:
     application();
