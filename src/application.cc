@@ -65,7 +65,7 @@ application::application() :
     m_usb{},
     m_matrix{},
     m_report{},
-    m_keyboard{m_matrix, {}}
+    m_keyboard{m_matrix, m_report}
 {
     if(!m_uart) while(1);
     if(m_leds) s_leds = &m_leds.value();

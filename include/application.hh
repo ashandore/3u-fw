@@ -62,7 +62,7 @@ private:
     uint8_t                                         m_dummy_send[matrix_t::size()];
 
     hid::keyboard_report                            m_report;
-    keeb::keyboard<pokey>                           m_keyboard;
+    pokey                                           m_keyboard;
     uint32_t                                        m_march_count;
 public:
     application();
