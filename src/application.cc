@@ -128,7 +128,6 @@ void application::loop(void)
     HAL_Delay(10);
 
     //Next big step might be a better way to manage tasks.
-
     m_keyboard.update();
 
 

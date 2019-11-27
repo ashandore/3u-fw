@@ -5,32 +5,41 @@
 #include <utl/array.hh>
 #include <utl/matrix.hh>
 #include <utl/tuple.hh>
+#include <initializer_list>
 
 namespace keeb {
 
-using pos_t = utl::matrix_index_t;
+struct pos_t {
+    uint8_t col;
+    uint8_t row;
+    // constexpr pos_t(uint8_t c, uint8_t r) : col{c}, row{r} {}
+    constexpr pos_t(size_t c, size_t r) 
+      : col{static_cast<uint8_t>(c)}, row{static_cast<uint8_t>(r)}
+    {}
+    
+    constexpr operator utl::matrix_index_t() {
+        return {static_cast<size_t>(col), static_cast<size_t>(row)};
+    }
 
-namespace interface {
-
-template <typename KeebPolicy>
-struct emitter {
-    using input_t = typename KeebPolicy::Input_t;
-    using event_t = typename input_t::event;
-    virtual void emit(input_t& input, event_t event) = 0;
-    virtual ~emitter() = default;
+    bool operator==(pos_t const& other) const {
+        return col == other.col and row == other.row;
+    }
 };
 
-template <typename KeebPolicy>
-struct layout {
-    using input_t = typename KeebPolicy::input_t;
-    using event_t = typename input_t::event;
-    virtual void emit(pos_t pos, input_t& input, event_t event) = 0;
-    virtual ~layout() = default;
+
+namespace input {
+
+template <typename Event_t>
+struct get_input_type {
+    static_assert("all input types must define a specialization of the "
+        "get_input_type trait that accepts their event type and "
+        "produces the input type.");
 };
 
-} //namespace interface
+template <typename T>
+using get_input_t = typename get_input_type<T>::type;
 
-
+} //namespace input
 
 //something to think about:
 //if this is intended to be used by others, it might
@@ -46,8 +55,8 @@ struct layout {
 template <size_t Columns, typename Row_t, bool DiscardFirst = false>
 struct matrix {
     using row_t = Row_t;
-    static constexpr size_t columns = Columns;
-    static constexpr size_t rows = 8*sizeof(row_t);
+    static constexpr uint8_t columns = Columns;
+    static constexpr uint8_t rows = 8*sizeof(row_t);
 
     utl::array<row_t,columns + (DiscardFirst ? 1 : 0)> data;
 
@@ -55,12 +64,16 @@ struct matrix {
         return &data[0];
     }
 
-    constexpr bool get(const size_t column, const size_t row) const volatile {
+    constexpr bool get(const uint8_t column, const uint8_t row) const volatile {
         if constexpr(DiscardFirst) {
             return data[column + 1] & static_cast<row_t>(1 << (rows - row - 1));
         } else {
             return data[column] & static_cast<row_t>(1 << (rows - row - 1));
         }
+    }
+
+    constexpr bool get(const pos_t pos) const volatile {
+        return get(pos.col,pos.row);
     }
 
     static constexpr size_t size() {
@@ -69,10 +82,10 @@ struct matrix {
 };
 
 
-template <typename Input_t, typename... Macros>
-struct handler {
-    using input_t = Input_t;
-    using event_t = typename input_t::event;
+template <typename T, typename... Macros>
+struct slot {
+    using event_t = T;
+    using input_t = input::get_input_t<event_t>;
 
     template <typename Callable, typename... Args>
     using is_callable_t = decltype(std::declval<Callable&>()(std::declval<Args>()...));
@@ -80,104 +93,149 @@ struct handler {
     template <typename Macro>
     using is_macro_t = is_callable_t<Macro,input_t>;
 
+    //Static assertions:
+    // - the macros are callable, with the input they're attached to as an input
+    // - all macros have the same signature
+    // - could I get the input type from the signature of the macro?
+
     // static_assert((is_detected_v<is_macro_t,Macros> && ...), "macro is not callable with the input it is attached to!"
     //     "(a macro must be callable and accept a single argument of the type of input it is attached to)");
 
     const event_t event;
     utl::tuple<Macros...> macros;
-    
-    void operator()(input_t& input) {
-        utl::for_each(macros, [&](auto& macro) {
-            return macro(input);
-        });
-    }
+
+    constexpr slot(event_t event_, Macros... macros_) : event{event_}, macros{macros_...} {}
 };
 
-// template <typename Input_t, typename... Macros>
-// handler<Input_t,Macros...> make_handler(typename Input_t::event event, Macros&&... macros) { return {event,{std::forward<Macros>(macros)...}}; }
 
-//connects a set of handlers to a position
-template <typename KeebPolicy, typename... Handlers>
-struct emitter {
-    using input_t = typename KeebPolicy::input_t;
+
+template <typename T, typename... Ts>
+slot(T,Ts...) -> slot<T,Ts...>;
+
+//connects a set of slots to a position
+template <typename... Slots>
+struct signal {
+    using input_t = typename utl::get_t<0,Slots...>::input_t;
     using event_t = typename input_t::event;
 
     const pos_t pos;
-    utl::tuple<Handlers...> handlers;
+    utl::tuple<Slots...> slots;
 
-    constexpr emitter(pos_t p, utl::tuple<Handlers...> h) : pos{p}, handlers{h} {}
-
-    void emit(input_t& input, event_t event) final {
-        utl::for_each(handlers, [&](auto& handler) {
-            if(handler.event == event) handler(input);
-        });
-    }
+    constexpr signal(pos_t&& pos_, Slots&&... slots_) : pos{pos_}, slots{slots_...} {}
 };
 
-// template <typename Input_t, typename... Handlers>
-// emitter<Input_t,Handlers...> make_emitter(pos_t pos, Handlers&&... handlers) { return {pos, utl::make_tuple{std::forward<Handlers>(handlers)...}}; }
+template <typename... Slots>
+signal(pos_t,Slots...) -> signal<Slots...>;
 
+namespace detail {
 
-template <typename KeebPolicy, size_t N, typename... Handlers>
-class layout : public virtual interface::layout<KeebPolicy> {
-    using input_t = typename KeebPolicy::input_t;
-    using event_t = typename input_t::event;
-    using array_t = utl::array<emitter<KeebPolicy,Handlers...>,N>;
+template <size_t N, class = utl::make_index_sequence<N>, typename... Slots>
+class layout;
 
-    array_t m_emitters;
+template <size_t N, size_t... Ns, typename... Slots>
+class layout<N,utl::index_sequence<Ns...>,Slots...> {
 public:
-    template <typename... Args>
-    constexpr layout(Args... args) : m_emitters{std::forward<Args>(args)...} {}
+    using input_t = typename utl::get_t<0,Slots...>::input_t;
+    using event_t = typename input_t::event;
+    using signal_t = signal<Slots...>;
+    using array_t = utl::array<signal_t,N>;
+    
+    array_t signals;
 
-    void emit(pos_t pos, input_t& input, event_t event) final {
-        for(auto& emitter : m_emitters) {
-            if(emitter.pos == pos) {
-                emitter.emit(input, event);
-            }
-        }
-    }
+    template <size_t>
+    using _signal_t = signal_t;
+public:
+    layout(_signal_t<Ns>&&... signals_) : signals{signals_...} {}
 };
+
+
+
+} //namespace detail
+
+template <size_t N, typename... Slots>
+using layout = detail::layout<N,utl::make_index_sequence<N>,Slots...>;
 
 template <typename KeebPolicy>
-class keyboard {
+class keyboard : public KeebPolicy {
+public:
     using config_t = KeebPolicy;
     using scan_matrix_t = typename config_t::scan_matrix_t;
     using input_t = typename config_t::input_t;
+    using event_t = typename input_t::event;
+    using input_matrix_t = utl::matrix<input_t,config_t::columns,config_t::rows>;
 
-    template <size_t N, typename... Handlers>
-    using layout_t = layout<config_t,N,Handlers...>;
+    template <size_t N, typename... Slots>
+    using layout_t = layout<N,Slots...>;   
+
+    template <typename... Macros>
+    using slot_t = slot<event_t,Macros...>;
 
     static_assert(config_t::rows <= scan_matrix_t::rows, 
         "keyboard cannot have more rows than its scan matrix.");
     static_assert(config_t::columns <= scan_matrix_t::columns,
         "keyboard cannot have more columns than its scan matrix");
 
+    scan_matrix_t&                              scan_matrix;
+    input_matrix_t                              inputs;
 
-    scan_matrix_t&                              m_scan_matrix;
-    input_matrix_t                              m_inputs;
-    interface::layout<config_t>*                m_active_layout;
-public:
-
-    template <typename T>
-    constexpr keyboard(scan_matrix_t& scan_matrix, input_matrix_t inputs, T& default_layout)
-        : m_scan_matrix{scan_matrix}, m_inputs{inputs}, m_active_layout{&default_layout}
+    constexpr keyboard(scan_matrix_t& scan_matrix_, input_matrix_t inputs_)
+        : scan_matrix{scan_matrix_}, inputs{inputs_}
     {}
 
-    void update() {
-        if(m_active_layout == nullptr) return;
-        for(size_t col = 0; col < m_inputs.width(); col++) {
-            for(size_t row = 0; row < m_inputs.height(); row++) {
-                pos_t pos{col,row};
-                auto new_state = m_scan_matrix.get(pos);
-                m_inputs[pos].update(new_state, m_active_layout);
-            }
+    constexpr size_t width() { return config_t::columns; }
+    constexpr size_t height() { return config_t::rows; }
+};
+
+template <typename Keyboard_t>
+using input_t = typename Keyboard_t::input_t;
+
+template <typename Keyboard_t>
+using event_t = typename Keyboard_t::event_t;
+
+//FIXME: should have some kind of context object that gets passed around.
+//it's what macros can use to... do stuff
+
+
+template <typename Keyboard_t, typename... Macros>
+void emit(Keyboard_t& keyboard, slot<event_t<Keyboard_t>,Macros...>& s, input_t<Keyboard_t>& input) {
+    utl::maybe_unused(keyboard);
+    utl::for_each(s.macros, [&](auto& macro) { 
+        macro(input); 
+    });
+}
+
+template <typename Keyboard_t, typename... Slots>
+void emit(Keyboard_t& keyboard, signal<Slots...>& s, input_t<Keyboard_t>& input, event_t<Keyboard_t> event) {
+    utl::for_each(s.slots, [&](auto& slot) {
+        if(slot.event == event) emit(keyboard, slot, input);
+    });
+}
+
+template <typename Keyboard_t, size_t N, typename... Slots>
+void emit(Keyboard_t& keyboard, layout<N, Slots...>& layout, pos_t pos, input_t<Keyboard_t>& input, event_t<Keyboard_t>& event) {
+    for(auto& signal : layout.signals) {
+        if(signal.pos == pos) {
+            emit(keyboard, signal, input, event);
         }
     }
+}
 
-    void set_layout(interface::layout<config_t>* layout) {
-        m_active_layout = layout;
+template <typename Keyboard_t, typename Layout_t>
+void update(Keyboard_t& keyboard, Layout_t& layout) {
+
+    for(size_t col = 0; col < keyboard.width(); col++) {
+        for(size_t row = 0; row < keyboard.height(); row++) {
+            pos_t pos{col,row};
+            auto new_state = keyboard.scan_matrix.get(pos);
+            auto& input = keyboard.inputs[pos];
+            input.update(new_state, pos, 
+                [&](event_t<Keyboard_t> event) {
+                    emit(keyboard,layout,pos,input,event);
+                }
+            );
+        }
     }
-};
+}
 
 // template <typename Matrix_t, typename Input_t, size_t Rows>
 // keyboard(Matrix_t, utl::matrix<Input_t,Matrix_t::columns,Rows>, interface::layout<keyboard<Matrix_t,Input_t,Rows>>*) -> keyboard<Matrix_t, Input_t, Rows>;
