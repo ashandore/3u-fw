@@ -27,19 +27,12 @@ struct pos_t {
 };
 
 
-namespace input {
 
-template <typename Event_t>
-struct get_input_type {
-    static_assert("all input types must define a specialization of the "
-        "get_input_type trait that accepts their event type and "
-        "produces the input type.");
-};
+template <typename Config_t>
+using input_t = typename Config_t::input_t;
 
-template <typename T>
-using get_input_t = typename get_input_type<T>::type;
-
-} //namespace input
+template <typename Config_t>
+using event_t = typename Config_t::input_t::event;
 
 //something to think about:
 //if this is intended to be used by others, it might
@@ -82,10 +75,11 @@ struct matrix {
 };
 
 
-template <typename T, typename... Macros>
+template <typename Config_t, typename... Macros>
 struct slot {
-    using event_t = T;
-    using input_t = input::get_input_t<event_t>;
+    using config_t = Config_t;
+    using event_t = event_t<Config_t>;
+    using input_t = input_t<Config_t>;
 
     template <typename Callable, typename... Args>
     using is_callable_t = decltype(std::declval<Callable&>()(std::declval<Args>()...));
@@ -107,16 +101,12 @@ struct slot {
     constexpr slot(event_t event_, Macros... macros_) : event{event_}, macros{macros_...} {}
 };
 
-
-
-template <typename T, typename... Ts>
-slot(T,Ts...) -> slot<T,Ts...>;
-
 //connects a set of slots to a position
 template <typename... Slots>
 struct signal {
-    using input_t = typename utl::get_t<0,Slots...>::input_t;
-    using event_t = typename input_t::event;
+
+    //FIXME: require that all Slots have the same config type
+    //as us.
 
     const pos_t pos;
     utl::tuple<Slots...> slots;
@@ -125,18 +115,16 @@ struct signal {
 };
 
 template <typename... Slots>
-signal(pos_t,Slots...) -> signal<Slots...>;
+signal(Slots...) -> signal<Slots...>;
 
 namespace detail {
 
-template <size_t N, class = utl::make_index_sequence<N>, typename... Slots>
-class layout;
+template <typename Config_t, size_t N, class = utl::make_index_sequence<N>, typename... Slots>
+struct layout;
 
-template <size_t N, size_t... Ns, typename... Slots>
-class layout<N,utl::index_sequence<Ns...>,Slots...> {
-public:
-    using input_t = typename utl::get_t<0,Slots...>::input_t;
-    using event_t = typename input_t::event;
+template <typename Config_t, size_t N, size_t... Ns, typename... Slots>
+struct layout<Config_t,N,utl::index_sequence<Ns...>,Slots...> {
+    using config_t = Config_t;
     using signal_t = signal<Slots...>;
     using array_t = utl::array<signal_t,N>;
     
@@ -144,31 +132,23 @@ public:
 
     template <size_t>
     using _signal_t = signal_t;
-public:
-    layout(_signal_t<Ns>&&... signals_) : signals{signals_...} {}
+    
+    layout(_signal_t<Ns>&&... signals_) : signals{std::forward<signal_t>(signals_)...} 
+    {}
 };
-
 
 
 } //namespace detail
 
-template <size_t N, typename... Slots>
-using layout = detail::layout<N,utl::make_index_sequence<N>,Slots...>;
+template <typename Config_t, size_t N, typename... Slots>
+using layout = detail::layout<Config_t,N,utl::make_index_sequence<N>,Slots...>;
 
-template <typename KeebPolicy>
-class keyboard : public KeebPolicy {
+template <typename Config_t>
+class keyboard : public Config_t {
 public:
-    using config_t = KeebPolicy;
+    using config_t = Config_t;
     using scan_matrix_t = typename config_t::scan_matrix_t;
-    using input_t = typename config_t::input_t;
-    using event_t = typename input_t::event;
-    using input_matrix_t = utl::matrix<input_t,config_t::columns,config_t::rows>;
-
-    template <size_t N, typename... Slots>
-    using layout_t = layout<N,Slots...>;   
-
-    template <typename... Macros>
-    using slot_t = slot<event_t,Macros...>;
+    using input_matrix_t = utl::matrix<input_t<config_t>,config_t::columns,config_t::rows>;
 
     static_assert(config_t::rows <= scan_matrix_t::rows, 
         "keyboard cannot have more rows than its scan matrix.");
@@ -186,18 +166,14 @@ public:
     constexpr size_t height() { return config_t::rows; }
 };
 
-template <typename Keyboard_t>
-using input_t = typename Keyboard_t::input_t;
 
-template <typename Keyboard_t>
-using event_t = typename Keyboard_t::event_t;
 
 //FIXME: should have some kind of context object that gets passed around.
 //it's what macros can use to... do stuff
 
 
-template <typename Keyboard_t, typename... Macros>
-void emit(Keyboard_t& keyboard, slot<event_t<Keyboard_t>,Macros...>& s, input_t<Keyboard_t>& input) {
+template <typename Keyboard_t, typename Config_t, typename... Macros>
+void emit(Keyboard_t& keyboard, slot<Config_t,Macros...>& s, input_t<Config_t>& input) {
     utl::maybe_unused(keyboard);
     utl::for_each(s.macros, [&](auto& macro) { 
         macro(input); 
@@ -211,8 +187,8 @@ void emit(Keyboard_t& keyboard, signal<Slots...>& s, input_t<Keyboard_t>& input,
     });
 }
 
-template <typename Keyboard_t, size_t N, typename... Slots>
-void emit(Keyboard_t& keyboard, layout<N, Slots...>& layout, pos_t pos, input_t<Keyboard_t>& input, event_t<Keyboard_t>& event) {
+template <typename Keyboard_t, typename Config_t, size_t N, typename... Slots>
+void emit(Keyboard_t& keyboard, layout<Config_t,N,Slots...>& layout, pos_t pos, input_t<Config_t>& input, event_t<Config_t>& event) {
     for(auto& signal : layout.signals) {
         if(signal.pos == pos) {
             emit(keyboard, signal, input, event);
@@ -222,7 +198,6 @@ void emit(Keyboard_t& keyboard, layout<N, Slots...>& layout, pos_t pos, input_t<
 
 template <typename Keyboard_t, typename Layout_t>
 void update(Keyboard_t& keyboard, Layout_t& layout) {
-
     for(size_t col = 0; col < keyboard.width(); col++) {
         for(size_t row = 0; row < keyboard.height(); row++) {
             pos_t pos{col,row};
@@ -235,6 +210,21 @@ void update(Keyboard_t& keyboard, Layout_t& layout) {
             );
         }
     }
+}
+
+template <typename Config_t>
+constexpr size_t get_width() {
+    return keyboard<Config_t>::width();
+}
+
+template <typename Config_t>
+constexpr size_t get_height() {
+    return keyboard<Config_t>::height();
+}
+
+template <typename Config_t>
+constexpr size_t get_keycount() {
+    return Config_t::keycount;
 }
 
 // template <typename Matrix_t, typename Input_t, size_t Rows>

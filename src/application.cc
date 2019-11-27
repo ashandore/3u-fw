@@ -79,7 +79,7 @@ void application::start(void)
 {
     utl::log("");
     utl::log("application started");
-    utl::log("UCPD reports a %dmA advertisement from DFP", m_ucpd.get_current_advertisement_ma());    
+    utl::log("UCPD reports a %dmA advertisement from DFP", m_ucpd.get_current_advertisement_ma());  
 
     m_power_switch.set_state(true);
     if(!m_adc) utl::log("ADC initialization failed: %s", m_adc.error().message().data());
@@ -87,30 +87,6 @@ void application::start(void)
     if(!m_usb) utl::log("USB failed to initialize.");
     if(!m_spi) utl::log("spi initialization failed!");   
     NVIC_SetPriority(SysTick_IRQn, 1);     
-
-    m_usb.visit([&](auto& usb) {
-        switch(usb.state()) {
-            case utl::hal::usb::state::DEFAULT:
-                utl::log("USB is in default state");
-                break;
-            case utl::hal::usb::state::ADDRESSED:
-                utl::log("USB is addressed");
-                break;
-            case utl::hal::usb::state::SUSPENDED:
-                if(usb.dev_remote_wakeup()) {
-                    utl::log("WARN: usb remote wakeup appears to be enabled.");
-                } else {
-                    utl::log("USB is suspended");
-                }
-                break;
-            case utl::hal::usb::state::CONFIGURED:
-                utl::log("USB is configured.");
-                break;
-            case utl::hal::usb::state::UNKNOWN:
-                utl::log("USB state is unknown...");
-                break;
-        }
-    });  
 
     m_leds.visit([&] (auto& leds) {
         for(uint32_t idx=0; idx < leds.count(); idx++) {
@@ -120,7 +96,10 @@ void application::start(void)
         }
     });
 
-    HAL_Delay(100);
+    m_usb.visit([&](auto& usb) {
+        while(usb.state() != utl::hal::usb::state::ADDRESSED);
+        utl::ignore_result(usb.send_report(m_report));
+    });  
 }
 
 void application::loop(void)
@@ -129,8 +108,7 @@ void application::loop(void)
 
     //Next big step might be a better way to manage tasks.
     m_keyboard.update();
-
-
+    
     //HID Report
     m_usb.visit([&](auto& connection) {
         utl::ignore_result(connection.send_report(m_report));
