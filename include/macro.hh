@@ -33,6 +33,31 @@ struct unset_scancode {
     }
 };
 
+template <typename T, typename L>
+struct push_layout {
+    T& m_stack;
+    L& m_layout;
+
+    template <typename Input_t>
+    constexpr bool operator()(Input_t& input) {
+        utl::maybe_unused(input);
+        m_stack.push(m_layout);
+        return true;
+    }
+};
+
+template <typename T>
+struct pop_layout {
+    T& m_stack;
+
+    template <typename Input_t>
+    constexpr bool operator()(Input_t& input) {
+        utl::maybe_unused(input);
+        m_stack.pop();
+        return true;
+    }
+};
+
 } //namespace keeb::macro
 
 #endif //CCKB_MACRO_HH_

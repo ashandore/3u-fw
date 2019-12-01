@@ -5,22 +5,20 @@
 
 namespace sc = utl::hal::usb::hid::scancode;
 
-
-//FIXME: this needs to be better.
-
 template <typename Config_t>
-struct default_layout {
-    using event_t = keeb::event_t<Config_t>;
-    using layout_t = keeb::layout<
+using default_layout_t = keeb::layout<
         Config_t,
         keeb::get_keycount<Config_t>(),
         keeb::slot<Config_t,keeb::macro::set_scancode>,
-        keeb::slot<Config_t,keeb::macro::unset_scancode>
-    >;
+        keeb::slot<Config_t,keeb::macro::unset_scancode>>;
 
-    utl::hal::usb::hid::keyboard_report& report;
+template <typename Config_t>
+struct default_layout : default_layout_t<Config_t>
+{
+    using event_t = keeb::event_t<Config_t>;
 
-    layout_t layout{ 
+    default_layout(utl::hal::usb::hid::keyboard_report& report) 
+    : default_layout_t<Config_t>{ 
         {{0,0},  
             {event_t::pressed, keeb::macro::set_scancode{sc::grave, report}},
             {event_t::released, keeb::macro::unset_scancode{sc::grave, report}}
@@ -361,7 +359,10 @@ struct default_layout {
             {event_t::pressed, keeb::macro::set_scancode{sc::none, report}},
             {event_t::released, keeb::macro::unset_scancode{sc::none, report}}
         }
-    };
+    }
+    {
+        
+    }
 };
 
 

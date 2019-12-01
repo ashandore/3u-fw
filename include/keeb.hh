@@ -232,33 +232,36 @@ constexpr size_t get_keycount() {
     return Config_t::keycount;
 }
 
+namespace detail {
+struct empty {};
+} //namespace detail
+
 template <size_t N, typename... Ts>
 struct layout_stack {
-    struct empty {};
 
-    utl::array<utl::variant<empty,Ts*...>,sizeof...(Ts)> m_stack;
+    utl::array<utl::variant<Ts*...>,sizeof...(Ts)> m_stack;
     size_t m_index;
 public:
-    template <typename T>
-    constexpr layout_stack(T& layout) : m_stack{&layout}, m_index{0}
+    template <typename... Us>
+    constexpr layout_stack(Us&&... layouts) : m_stack{&layouts...}, m_index{sizeof...(Us) - 1}
     {}
 
     template<typename T>
     void push(T& layout) {
         if(m_index == N) return;
-        m_stack[m_index] = &layout;
         m_index++;
+        m_stack[m_index] = &layout;
     }
 
     void pop() {
         if(m_index == 0) return;
+        m_stack[m_index] = nullptr;
         m_index--;
-        m_stack[m_index] = empty{};
     }
 
     template <typename F>
     void accept(F&& visitor) {
-        m_stack[m_index-1].accept(visitor);
+        m_stack[m_index].accept(visitor);
     }
 };
 
