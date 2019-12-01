@@ -22,13 +22,15 @@ struct pokey : keeb::keyboard<config> {
     using kb = keeb::keyboard<config>;
 
     default_layout<config> m_default_layout;
+
+    keeb::layout_stack<3,default_layout<config>::layout_t> m_layout_stack;
     
     pokey(scan_matrix_t& scan_matrix_, utl::hal::usb::hid::keyboard_report& report_)
-      : kb{scan_matrix_, {}}, m_default_layout{report_}
+      : kb{scan_matrix_, {}}, m_default_layout{report_}, m_layout_stack{m_default_layout.layout}
     {}
 
     void update() {
-        keeb::update(*this, m_default_layout.layout);
+        keeb::update(*this, m_layout_stack);
     }
 };
 

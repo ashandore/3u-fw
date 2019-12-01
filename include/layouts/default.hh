@@ -5,6 +5,9 @@
 
 namespace sc = utl::hal::usb::hid::scancode;
 
+
+//FIXME: this needs to be better.
+
 template <typename Config_t>
 struct default_layout {
     using event_t = keeb::event_t<Config_t>;

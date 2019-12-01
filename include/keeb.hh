@@ -5,6 +5,7 @@
 #include <utl/array.hh>
 #include <utl/matrix.hh>
 #include <utl/tuple.hh>
+#include <utl/variant.hh>
 #include <initializer_list>
 
 namespace keeb {
@@ -141,7 +142,9 @@ struct layout<Config_t,N,utl::index_sequence<Ns...>,Slots...> {
 } //namespace detail
 
 template <typename Config_t, size_t N, typename... Slots>
-using layout = detail::layout<Config_t,N,utl::make_index_sequence<N>,Slots...>;
+struct layout : public detail::layout<Config_t,N,utl::make_index_sequence<N>,Slots...> {
+    using detail::layout<Config_t,N,utl::make_index_sequence<N>,Slots...>::layout;
+};
 
 template <typename Config_t>
 class keyboard : public Config_t {
@@ -196,8 +199,8 @@ void emit(Keyboard_t& keyboard, layout<Config_t,N,Slots...>& layout, pos_t pos, 
     }
 }
 
-template <typename Keyboard_t, typename Layout_t>
-void update(Keyboard_t& keyboard, Layout_t& layout) {
+template <typename Keyboard_t, typename Visit_t>
+void update(Keyboard_t& keyboard, Visit_t& layout_collection) {
     for(size_t col = 0; col < keyboard.width(); col++) {
         for(size_t row = 0; row < keyboard.height(); row++) {
             pos_t pos{col,row};
@@ -205,7 +208,9 @@ void update(Keyboard_t& keyboard, Layout_t& layout) {
             auto& input = keyboard.inputs[pos];
             input.update(new_state, pos, 
                 [&](event_t<Keyboard_t> event) {
-                    emit(keyboard,layout,pos,input,event);
+                    layout_collection.accept([&](auto* layout) {
+                        emit(keyboard,*layout,pos,input,event);
+                    });
                 }
             );
         }
@@ -227,8 +232,35 @@ constexpr size_t get_keycount() {
     return Config_t::keycount;
 }
 
-// template <typename Matrix_t, typename Input_t, size_t Rows>
-// keyboard(Matrix_t, utl::matrix<Input_t,Matrix_t::columns,Rows>, interface::layout<keyboard<Matrix_t,Input_t,Rows>>*) -> keyboard<Matrix_t, Input_t, Rows>;
+template <size_t N, typename... Ts>
+struct layout_stack {
+    struct empty {};
+
+    utl::array<utl::variant<empty,Ts*...>,sizeof...(Ts)> m_stack;
+    size_t m_index;
+public:
+    template <typename T>
+    constexpr layout_stack(T& layout) : m_stack{&layout}, m_index{0}
+    {}
+
+    template<typename T>
+    void push(T& layout) {
+        if(m_index == N) return;
+        m_stack[m_index] = &layout;
+        m_index++;
+    }
+
+    void pop() {
+        if(m_index == 0) return;
+        m_index--;
+        m_stack[m_index] = empty{};
+    }
+
+    template <typename F>
+    void accept(F&& visitor) {
+        m_stack[m_index-1].accept(visitor);
+    }
+};
 
 } //namespace keeb
 
